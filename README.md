@@ -8,4 +8,7 @@
 
 __Remember to include all required documentation and HOWTOs, including how to create and populate the database, how to run and test the API, the url to the entrypoint, instructions on how to setup and run the client, instructions on how to setup and run the axiliary service and instructions on how to deploy the api in a production environment__
 
+### Creating and populating the database
+The database implementation can be found from the `db_implementation.py` file. We created a random database population script that will create and populate the database with random data utilizing the [Faker Python package](https://faker.readthedocs.io/en/master/). The database can be populated simply by running `python db_population.py` in the Python virtual environment.
+
 30.1.2025: In the database implementation we decided to go with MySQL used via SQLAlchemy because it is well suitable for general purpose web applications.
