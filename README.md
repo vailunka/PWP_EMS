@@ -11,4 +11,7 @@ __Remember to include all required documentation and HOWTOs, including how to cr
 ### Creating and populating the database
 The database implementation can be found from the `db_implementation.py` file. We created a random database population script that will create and populate the database with random data utilizing the [Faker Python package](https://faker.readthedocs.io/en/master/). The database can be populated simply by running `python db_population.py` in the Python virtual environment.
 
+Tutorial for MySQL usage: 
+https://www.youtube.com/watch?v=3vsC05rxZ8c&t=533s&ab_channel=TechWithTim
+
 30.1.2025: In the database implementation we decided to go with MySQL used via SQLAlchemy because it is well suitable for general purpose web applications.
