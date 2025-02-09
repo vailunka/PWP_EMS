@@ -2,6 +2,7 @@ import config as cfg
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+import mysql.connector
 
 
 # Initialize Flask app
@@ -43,3 +44,18 @@ class User(db.Model):
     phone_number = db.Column(db.String(128), nullable=True)
 
     events = db.relationship("Event", secondary=EventParticipants.__table__, back_populates="users")
+
+
+def create_database():
+    """Creates the MySQL database with the name cfg.DB_NAME"""
+    database = mysql.connector.connect(host=cfg.DB_HOST, user=cfg.DB_USERNAME, passwd=cfg.DB_PASSWORD)
+    database_cursor = database.cursor()
+    try:
+        database_cursor.execute(f"CREATE DATABASE {cfg.DB_NAME}")
+    except mysql.connector.errors.DatabaseError as db_error:
+        print(f"{db_error.__class__.__name__}:{db_error}")
+        database_cursor.execute(f"DROP DATABASE {cfg.DB_NAME}")
+        database_cursor.execute(f"CREATE DATABASE {cfg.DB_NAME}")
+        database_cursor.execute("SHOW DATABASES")
+        for databases_found in database_cursor:
+            print(databases_found)

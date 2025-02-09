@@ -1,27 +1,9 @@
 import random
 from faker import Faker
-from db_implementation import db, app, User, Event, EventParticipants
-import config as cfg
-import mysql.connector
+from db_implementation import db, app, User, Event, EventParticipants, create_database
+
 
 fake = Faker()
-
-
-def create_database():
-    """Creates the MySQL database with the name cfg.DB_NAME"""
-    database = mysql.connector.connect(host=cfg.DB_HOST, user=cfg.DB_USERNAME, passwd=cfg.DB_PASSWORD)
-    database_cursor = database.cursor()
-    try:
-        # database_cursor.execute(f"CREATE DATABASE {cfg.DB_NAME}")
-        return database_cursor
-    except mysql.connector.errors.DatabaseError as db_error:
-        print(f"{db_error.__class__.__name__}:{db_error}")
-        database_cursor.execute(f"DROP DATABASE {cfg.DB_NAME}")
-        database_cursor.execute(f"CREATE DATABASE {cfg.DB_NAME}")
-        database_cursor.execute("SHOW DATABASES")
-        for databases_found in database_cursor:
-            print(databases_found)
-        return database_cursor
 
 
 def populate_database():
