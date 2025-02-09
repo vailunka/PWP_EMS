@@ -9,6 +9,9 @@
 __Remember to include all required documentation and HOWTOs, including how to create and populate the database, how to run and test the API, the url to the entrypoint, instructions on how to setup and run the client, instructions on how to setup and run the axiliary service and instructions on how to deploy the api in a production environment__
 
 ### Creating and populating the database
+All the required packages can be installed in the python virtual environment by running the following command: `pip install -r path/to/requirements.txt`.
+Our database utilizes MySQL.
+
 The database implementation can be found from the `db_implementation.py` file. We created a random database population script that will create and populate the database with random data utilizing the [Faker Python package](https://faker.readthedocs.io/en/master/). The database can be populated simply by running `python db_population.py` in the Python virtual environment.
 
 Tutorial for MySQL usage: 
