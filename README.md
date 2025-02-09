@@ -14,4 +14,6 @@ The database implementation can be found from the `db_implementation.py` file. W
 Tutorial for MySQL usage: 
 https://www.youtube.com/watch?v=3vsC05rxZ8c&t=533s&ab_channel=TechWithTim
 
+MySQL version = 8.0.41
+
 30.1.2025: In the database implementation we decided to go with MySQL used via SQLAlchemy because it is well suitable for general purpose web applications.
