@@ -77,3 +77,8 @@ if __name__ == "__main__":
         print("\nFiltered Events:")
         for event in category_events:
             print(f"Name: {event.name},  Categories: {event.category}")
+
+        tags_events = Event.query.filter(Event.tags.contains("jazz-concert")).all()
+        print("\nFiltered tags:")
+        for event in tags_events:
+            print(f"Name: {event.name},  tags: {event.tags}")
