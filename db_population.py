@@ -23,16 +23,17 @@ def populate_database():
               f"events:{user.events}")
     # Populating random.randint() amount of events with fake data
     categories = ["music", "sports", "festival", "outdoor", "technology", "education", "food", "art", "business"]
+    tags = [
+    "live-music", "jazz-concert", "indie-rock", "electronic-dance", "classical-music", 
+    "charity-gala", "fundraising-dinner", "outdoor-festival", "music-festival", "food-truck", 
+    "street-food", "wine-tasting", "gourmet-dinner", "cocktail-mixing", "cooking-class"]
     for _ in range(event_amount):
         event_to_add = Event(name=fake.color_name(), location=fake.street_name(), time="2025-03-15 10:00:00",
-                             description=fake.catch_phrase(), organizer=fake.name(), category=["outdoor", "sport"])
+                             description=fake.catch_phrase(), organizer=fake.name(), category=random.sample(categories, k=random.randint(1, 3)),
+                             tags=random.sample(tags, k=random.randint(1, 3)) )
         db.session.add(event_to_add)
     db.session.commit()
 
-    event_to_add = Event(name=fake.color_name(), location=fake.street_name(), time="2025-03-15 10:00:00",
-                             description=fake.catch_phrase(), organizer=fake.name(), category=random.sample(categories, k=random.randint(1, 3)))
-    db.session.add(event_to_add)
-    db.session.commit()
     events_query = Event.query.all()
     # Populating the events randomly
     print("\nEvents:")
