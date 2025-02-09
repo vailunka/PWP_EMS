@@ -22,6 +22,7 @@ def populate_database():
         print(f"id:{user.id}, name:{user.name}, email:{user.email}, phone_number:{user.phone_number}, "
               f"events:{user.events}")
     # Populating random.randint() amount of events with fake data
+    categories = ["music", "sports", "festival", "outdoor", "technology", "education", "food", "art", "business"]
     for _ in range(event_amount):
         event_to_add = Event(name=fake.color_name(), location=fake.street_name(), time="2025-03-15 10:00:00",
                              description=fake.catch_phrase(), organizer=fake.name(), category=["outdoor", "sport"])
@@ -29,7 +30,7 @@ def populate_database():
     db.session.commit()
 
     event_to_add = Event(name=fake.color_name(), location=fake.street_name(), time="2025-03-15 10:00:00",
-                             description=fake.catch_phrase(), organizer=fake.name(), category=["music", "festival"])
+                             description=fake.catch_phrase(), organizer=fake.name(), category=random.sample(categories, k=random.randint(1, 3)))
     db.session.add(event_to_add)
     db.session.commit()
     events_query = Event.query.all()
@@ -70,11 +71,7 @@ if __name__ == "__main__":
             participants = [user.name for user in e.users]
             print(f"Event {e.id} ({e.name}) participants:"
                   f"{', '.join(participants) if participants else 'No participants'}")
-
-
-
-
-# Print the filtered events       
+        #Print the filtered events       
         category_events = Event.query.filter(Event.category.contains("music")).all()
         print("\nFiltered Events:")
         for event in category_events:
