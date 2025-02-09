@@ -24,15 +24,20 @@ def populate_database():
     # Populating random.randint() amount of events with fake data
     for _ in range(event_amount):
         event_to_add = Event(name=fake.color_name(), location=fake.street_name(), time="2025-03-15 10:00:00",
-                             description=fake.catch_phrase(), organizer=fake.name())
+                             description=fake.catch_phrase(), organizer=fake.name(), category=["outdoor", "sport"])
         db.session.add(event_to_add)
+    db.session.commit()
+
+    event_to_add = Event(name=fake.color_name(), location=fake.street_name(), time="2025-03-15 10:00:00",
+                             description=fake.catch_phrase(), organizer=fake.name(), category=["music", "festival"])
+    db.session.add(event_to_add)
     db.session.commit()
     events_query = Event.query.all()
     # Populating the events randomly
     print("\nEvents:")
     for event_info in events_query:
         print(f"id:{event_info.id}, location:{event_info.location}, time:{event_info.time},"
-              f"description:{event_info.description}, organizer:{event_info.organizer}")
+              f"description:{event_info.description}, organizer:{event_info.organizer}, category:{event_info.category}")
     print("\nPopulating event participants table")
     for event in events_query:
         selected_users = random.sample(users_query, min(random.randint(2, 15), len(users_query)))
@@ -65,3 +70,12 @@ if __name__ == "__main__":
             participants = [user.name for user in e.users]
             print(f"Event {e.id} ({e.name}) participants:"
                   f"{', '.join(participants) if participants else 'No participants'}")
+
+
+
+
+# Print the filtered events       
+        category_events = Event.query.filter(Event.category.contains("music")).all()
+        print("\nFiltered Events:")
+        for event in category_events:
+            print(f"Name: {event.name},  Categories: {event.category}")
