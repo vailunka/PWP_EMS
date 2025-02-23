@@ -15,35 +15,31 @@ app.config['SQLALCHEMY_DATABASE_URI'] = (f"mysql+pymysql://{cfg.DB_USERNAME}:{cf
 db = SQLAlchemy(app)
 
 
-class EventParticipants(db.Model):
-    __tablename__ = "event_participants"
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
-    event_id = db.Column(db.Integer, db.ForeignKey("events.id"))
+event_participants = db.Table("event_participants",
+                              db.Column("user_id", db.Integer, db.ForeignKey("user.id"), primary_key=True),
+                              db.Column("event_id", db.Integer, db.ForeignKey("event.id"), primary_key=True))
 
 
 class Event(db.Model):
-    __tablename__ = "events"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), nullable=False)
     location = db.Column(db.String(128), nullable=False)
     time = db.Column(db.DateTime, nullable=False)
     description = db.Column(db.String(2048))
-    organizer = db.Column(db.String(128))
+    organizer = db.Column(db.Integer, db.ForeignKey("user.id"))
     category = db.Column(db.JSON)
     tags = db.Column(db.JSON)
 
-    users = db.relationship("User", secondary=EventParticipants.__table__, back_populates="events")
+    users = db.relationship("User", secondary=event_participants, back_populates="attended_events")
 
 
 class User(db.Model):
-    __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), nullable=False)
     email = db.Column(db.String(128), nullable=False)
     phone_number = db.Column(db.String(128), nullable=True)
 
-    events = db.relationship("Event", secondary=EventParticipants.__table__, back_populates="users")
+    attended_events = db.relationship("Event", secondary=event_participants, back_populates="users")
 
 
 def create_database():
