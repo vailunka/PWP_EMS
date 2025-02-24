@@ -1,6 +1,6 @@
 import random
 from faker import Faker
-from db_implementation import db, app, User, Event, event_participants, create_database
+from db_implementation import db, app, User, Event, create_database
 
 
 fake = Faker()
