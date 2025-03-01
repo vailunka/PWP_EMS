@@ -160,8 +160,8 @@ class UserItem(Resource):
             return Response("", 415)
         try:
             validate(instance=contents,
-            schema=User.json_schema(),
-            format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER)
+                     schema=User.json_schema(),
+                     format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER)
         except ValidationError as ex:
             raise BadRequest(description=str(ex))
         user.deserialize(contents)
@@ -193,8 +193,8 @@ class UserCollection(Resource):
             raise BadRequest
         try:
             validate(instance=contents,
-            schema=User.json_schema(),
-            format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER)
+                     schema=User.json_schema(),
+                     format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER)
         except ValidationError as ex:
             raise BadRequest(description=str(ex))
         user = User()
@@ -202,7 +202,7 @@ class UserCollection(Resource):
         db.session.add(user)
         db.session.commit()
         url = api.url_for(UserItem, user=user)
-        return Response("", 201, headders={"Location": url})
+        return Response("", 201, headers={"Location": url})
 
 
 class UserEvents(Resource):
@@ -221,7 +221,10 @@ class UserEvents(Resource):
             "attended_events": user.attended_events,
             "organized_events": events_organized_by_user,
         }
-        return Response("", 201, {"user_name": user.name, "event_infos": event_infos, "url": url})
+        response = jsonify({"user_name": user.name, "event_infos": event_infos})
+        response.status_code = 200
+        response.headers["Location"] = url
+        return response
 
 
 # Event-related resources
