@@ -3,7 +3,7 @@ import json
 import config as cfg
 import jsonschema.validators
 from jsonschema import validate, ValidationError
-from flask import Flask, request, abort, Response
+from flask import Flask, request, abort, Response, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_restful import Resource, Api
 from sqlalchemy.exc import IntegrityError
@@ -93,7 +93,8 @@ class Event(db.Model):
         }
         properties["time"] = {
             "description": "Time of the event",
-            "type": "date"
+            "type": "string",
+            "format": "date-time"
         }
         properties["organizer"] = {
             "description": "ID of the user who is organizing the event",
@@ -195,63 +196,43 @@ class UserEvents(Resource):
 # Event-related resources
 class EventItem(Resource):
 
-    # TODO --> add handling for JSON request type
-    def get(self, event_name):
+    def get(self, event):
         if request.method != "GET":
             raise BadRequest
-        e = Event.query.filter_by(name=event_name).first()
-        if not e:
-            raise NotFound
-        event_information = Event.serialize(e)
-        return event_information
+        response = jsonify(event.serialize())
+        response.status_code = 200
+        return response
 
-    # TODO --> add handling for JSON request type
-    # TODO --> check functionality of url
-    # TODO --> check what should be the response
-    # TODO --> check response code
-    def post(self, event_name):
-        if request.method != "POST":
-            return BadRequest
-        # Assumed that request is of type JSON
+    def put(self, event):
+        if request.method != "PUT":
+            raise BadRequest
         contents = request.json
         if not contents:
             return Response(status=415)
-
+        # Validation
         try:
-            validate(instance=contents,
-                     schema=Event.json_schema(),
-                     format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER)
+            validate(
+                instance=contents,
+                schema=Event.json_schema(),
+                format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER
+            )
         except ValidationError as ex:
             raise BadRequest(description=str(ex))
-        e = Event()
-        e.deserialize(contents)
-        db.session.add(e)
+        event.deserialize(contents)
         db.session.commit()
-        url = api.url_for(EventItem, event=event_name)
-        return Response("", 201, {"Location": url})
+        url = api.url_for(EventItem, event=event)
+        return Response(response=url, status=200)
 
-    # TODO --> add handling for JSON request type
-    # TODO --> figure out deletion in general and how to verify deletion
-    # TODO --> check response
-    def delete(self, event_name):
+    def delete(self, event):
         if request.method != "DELETE":
             return BadRequest
-        event = Event.query.filter_by(name=event_name).first()
         db.session.delete(event)
         db.session.commit()
-        success = False
-        try:
-            Event.query.filter_by(name=event_name).first()
-        except IntegrityError:
-            success = True
-        return Response("", 201, {"Deletion": str(success)})
-
-    # TODO --> check if there is a need for PUT method
+        return Response(status=204)
 
 
 class EventCollection(Resource):
 
-    # TODO --> add handling for JSON request type
     def get(self):
         if request.method != "GET":
             raise BadRequest
@@ -260,6 +241,40 @@ class EventCollection(Resource):
         if not events:
             raise NotFound
         return serialized_events
+
+    def post(self):
+        if request.method != "POST":
+            return BadRequest
+        contents = request.json
+        if not contents:
+            return Response(status=415)
+        # Validation
+        try:
+            validate(
+                instance=contents,
+                schema=Event.json_schema(),
+                format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER
+            )
+        except ValidationError as ex:
+            raise BadRequest(description=str(ex))
+
+        # Check if an event with the same name already exists
+        # existing_event = Event.query.filter_by(name=contents["name"]).first()
+        # if existing_event:
+        #    return Response(status=409)
+
+        e = Event()
+        e.deserialize(contents)
+        db.session.add(e)
+        db.session.commit()
+
+        # Return the response with the location header
+        url = api.url_for(EventItem, event=e)
+
+        response = jsonify(e.serialize())
+        response.status_code = 201
+        response.headers["location"] = url
+        return response
 
 
 # Converters

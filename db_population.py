@@ -58,6 +58,30 @@ def populate_database():
         # print(f"Event {p.event_id}: User {p.user_id} ")
 
 
+def populate_single_user(name, email, phone_number=""):
+    if phone_number:
+        user = User(name=name, email=email, phone_number=phone_number)
+    else:
+        user = User(name=name, email=email)
+    db.session.add(user)
+    db.session.commit()
+
+
+def populate_single_event(name="", location="", time="", organizer=None, description="", category=None, tags=None):
+    if description and category and tags:
+        event = Event(name=name,
+                      location=location,
+                      time=time,
+                      description=description,
+                      organizer=organizer,
+                      category=category,
+                      tags=tags)
+    else:
+        event = Event(name=name, location=location, time=time, organizer=organizer)
+    db.session.add(event)
+    db.session.commit()
+
+
 if __name__ == "__main__":
     create_database()
     with app.app_context():

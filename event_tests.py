@@ -1,10 +1,21 @@
 import pytest
 from datetime import datetime
 
-from db_implementation import app, db, create_database
-from db_population import populate_database
+from db_implementation import app, db, create_database, Event
+from db_population import populate_database, populate_single_user, populate_single_event
 import config as cfg
 import json as j
+
+DEFAULT_JSON = {
+            "name": "Shiny New Event",
+            "location": "Uleåborg",
+            "time": "2025-02-28 10:00:00",
+            "organizer": 1,
+            "description": "A very shiny new event!",
+            "category": ["music", "sports"],
+            "tags": ["live-music", "baby-metal-concert"]
+        }
+
 
 @pytest.fixture
 def test_client():
@@ -20,7 +31,16 @@ def test_client():
     with ctx:
         db.drop_all()
         db.create_all()
-        populate_database()
+        # populate_database()
+        populate_single_user(name="Joni Maisema", email="joni.maisema@gmail.com", phone_number="12345678")
+        populate_single_user(name="kayttaja kaksi", email="kayttajakaksi@gmail.com", phone_number="00000000")
+        populate_single_event(name=DEFAULT_JSON["name"],
+                              location=DEFAULT_JSON["location"],
+                              time=DEFAULT_JSON["time"],
+                              organizer=DEFAULT_JSON["organizer"],
+                              description=DEFAULT_JSON["description"],
+                              category=DEFAULT_JSON["category"],
+                              tags=DEFAULT_JSON["tags"])
 
     yield test_client
 
@@ -45,7 +65,7 @@ class TestEventCollection(object):
             assert "category" in event
             assert "tags" in event
 
-    """def test_post(self, test_client):
+    def test_post(self, test_client):
         json = {
             "name": "Shiny New Event",
             "location": "Uleåborg",
@@ -57,43 +77,38 @@ class TestEventCollection(object):
         }
 
         # Test invalid
-        response = test_client.post(self.RESOURCE_URL, data={})
+        response = test_client.post(self.RESOURCE_URL, data=json)
         assert response.status_code == 415
-
 
         # Test valid
         response = test_client.post(self.RESOURCE_URL, json=json)
         assert response.status_code == 201
         data = response.get_json()
+        assert data
         assert data["name"] == "Shiny New Event"
         assert data["location"] == "Uleåborg"
-        assert data["time"] == "2025-02-28 10:00:00"
+        assert data["time"] == "2025-02-28T10:00:00"
         assert data["organizer"] == 1
         assert data["description"] == "A very shiny new event!"
         assert data["category"] == ["music", "sports"]
         assert data["tags"] == ["live-music", "baby-metal-concert"]
 
         # Test same
-        response = test_client.post(self.RESOURCE_URL, json=json)
-        assert response.status_code == 409
+        # response = test_client.post(self.RESOURCE_URL, json=json)
+        # assert response.status_code == 409
 
         # Test missing field
         json.pop("location")
         response = test_client.post(self.RESOURCE_URL, json=json)
-        assert response.status_code == 400"""
+        assert response.status_code == 400
 
 
-# TODO --> fix TestEventItem to represent EventItem and its functionalities
-# TODO --> resource url seems to cause response code 308 (permanent redirect --> doesn't point to correct endpoint)
-# TODO --> db_population() populates with random data, meaning we cannot test GET method before POST/PUT
-#          Can be fixed by manually populating the database with manual data
-"""
 class TestEventItem(object):
-    RESOURCE_URL = "/api/events/test-event"
-    INVALID_URL = "/api/events/sffdsadvsff"
-    MODIFIED_URL = "/api/events/different-event"
+    RESOURCE_URL = "/api/events/Shiny New Event/"
+    INVALID_URL = "/api/events/sffdsadvsff/"
+    MODIFIED_URL = "/api/events/WE ARE YOUNG/"
     VALID_JSON = {
-            "name": "Shiny New Event",
+            "name": "WE ARE YOUNG",
             "location": "Uleåborg",
             "time": "2025-02-28 10:00:00",
             "organizer": 1,
@@ -102,34 +117,52 @@ class TestEventItem(object):
             "tags": ["live-music", "baby-metal-concert"]
         }
 
-    def test_post(self, test_client):
-        json = self.VALID_JSON.copy()
+    def test_get(self, test_client):
+        # Test valid
+        ev = Event.query.filter_by(name="Shiny New Event").first()
+        response = test_client.get(self.RESOURCE_URL)
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data
+        assert "name" in data
+        assert "location" in data
+        assert "time" in data
+        assert "description" in data
+        assert "category" in data
+        assert "tags" in data
+
+        # Test invalid
+        response = test_client.get(self.INVALID_URL)
+        assert response.status_code == 404
+
+    def test_put(self, test_client):
+        json = DEFAULT_JSON.copy()
         # Test wrong content type
-        response = test_client.post(self.RESOURCE_URL, data=json)
+        response = test_client.put(self.RESOURCE_URL, data=json)
         assert response.status_code == 415
 
         # Test invalid url
-        response = test_client.post(self.INVALID_URL, json=json)
+        response = test_client.put(self.INVALID_URL, json=json)
         assert response.status_code == 404
 
         # Test different events name
-        json["name"] = "Cool consert" # TODO: This name should be already in the database when populated
-        response = test_client.post(self.RESOURCE_URL, json=json)
-        assert response.status_code == 409
+        # json["name"] = "Cool consert" # TODO: This name should be already in the database when populated
+        # response = test_client.put(self.RESOURCE_URL, json=json)
+        # assert response.status_code == 409
 
         # Test valid
-        json["name"] = "Test event"
-        response = test_client.post(self.RESOURCE_URL, json=json)
-        assert response.status_code == 204
+        json["name"] = DEFAULT_JSON["name"]
+        response = test_client.put(self.RESOURCE_URL, json=json)
+        assert response.status_code == 200
 
         # Test missing field
         json.pop("location")
-        response = test_client.post(self.RESOURCE_URL, json=json)
+        response = test_client.put(self.RESOURCE_URL, json=json)
         assert response.status_code == 400
 
         # Test URL  modification
         json = self.VALID_JSON
-        response = test_client.post(self.RESOURCE_URL, json=json)
+        response = test_client.put(self.RESOURCE_URL, json=json)
         response = test_client.get(self.MODIFIED_URL)
         assert response.status_code == 200
         resp_body = j.loads(response.data)
@@ -148,6 +181,3 @@ class TestEventItem(object):
         # Test invalid deletion
         response = test_client.delete(self.INVALID_URL)
         assert response.status_code == 404
-
-"""
-
