@@ -123,7 +123,7 @@ class User(db.Model):
         self.name = serialized_data['name']
         self.email = serialized_data['email']
         # Optional parameter
-        self.phone_number = serialized_data['phone_number']
+        self.phone_number = serialized_data.get('phone_number')
 
     @staticmethod
     def json_schema():
@@ -153,25 +153,56 @@ class UserItem(Resource):
             raise NotFound
 
     def put(self, user):
-        pass
-
-    def post(self, user):
-        pass
+        if request.method != "PUT":
+            raise BadRequest
+        contents = request.json
+        if not contents:
+            return Response("", 415)
+        try:
+            validate(instance=contents,
+            schema=User.json_schema(),
+            format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER)
+        except ValidationError as ex:
+            raise BadRequest(description=str(ex))
+        user.deserialize(contents)
+        db.session.commit()
+        return Response("", 201)
 
     def delete(self, user):
-        pass
+        db.session.delete(user)
+        db.session.commit()
+        return Response("", 200)
 
 
 class UserCollection(Resource):
 
-    # TODO --> add handling for JSON request type
     def get(self):
         if request.method != "GET":
             raise BadRequest
+        contents = request.json
+        if not contents:
+            return Response("", 415)
         users = User.query.all()
         if not users:
             raise NotFound
         return Response("", 200, {"users": [user.name for user in users]})
+    
+    def post(self):
+        contents = request.json
+        if not contents:
+            raise BadRequest
+        try:
+            validate(instance=contents,
+            schema=User.json_schema(),
+            format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER)
+        except ValidationError as ex:
+            raise BadRequest(description=str(ex))
+        user = User()
+        user.deserialize(contents)
+        db.session.add(user)
+        db.session.commit()
+        url = api.url_for(UserItem, user=user)
+        return Response("", 201, headders={"Location": url})
 
 
 class UserEvents(Resource):
