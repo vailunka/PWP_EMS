@@ -1,3 +1,5 @@
+import json
+
 import config as cfg
 import jsonschema.validators
 from jsonschema import validate, ValidationError
@@ -5,7 +7,7 @@ from flask import Flask, request, abort, Response
 from flask_sqlalchemy import SQLAlchemy
 from flask_restful import Resource, Api
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import event
+from sqlalchemy import inspect
 from werkzeug.routing import BaseConverter
 from werkzeug.exceptions import NotFound, BadRequest
 from datetime import datetime
@@ -56,23 +58,23 @@ class Event(db.Model):
     def serialize(self, short_form=False):
         serialized = {"name": self.name,
                       "location": self.location,
-                      "time": self.time,
+                      "time": datetime.isoformat(self.time),
                       "organizer": self.organizer}
         if not short_form:
-            serialized['description'] = self.description,
-            serialized['category'] = self.category,
-            serialized['tags'] = self.tags
+            serialized["description"] = self.description
+            serialized["category"] = self.category
+            serialized["tags"] = self.tags
         return serialized
 
     def deserialize(self, serialized_data):
-        self.name = serialized_data['name']
-        self.location = serialized_data['location']
-        self.time = datetime.fromisoformat(serialized_data['time'])
-        self.organizer = serialized_data['organizer']
+        self.name = serialized_data["name"]
+        self.location = serialized_data["location"]
+        self.time = datetime.fromisoformat(serialized_data["time"])
+        self.organizer = serialized_data["organizer"]
         # Optional parameters
-        self.description = serialized_data.get('description')
-        self.category = serialized_data.get('category')
-        self.tags = serialized_data.get('tags')
+        self.description = serialized_data.get("description")
+        self.category = serialized_data.get("category")
+        self.tags = serialized_data.get("tags")
 
     @staticmethod
     def json_schema():
@@ -80,20 +82,20 @@ class Event(db.Model):
             "type": "object",
             "required": ["name", "location", "time", "organizer"]
         }
-        properties = schema['properties'] = {}
-        properties['name'] = {
+        properties = schema["properties"] = {}
+        properties["name"] = {
             "description": "Name of the event",
             "type": "string"
         }
-        properties['location'] = {
+        properties["location"] = {
             "description": "Location of the event",
             "type": "string"
         }
-        properties['time'] = {
+        properties["time"] = {
             "description": "Time of the event",
             "type": "date"
         }
-        properties['organizer'] = {
+        properties["organizer"] = {
             "description": "ID of the user who is organizing the event",
             "type": "integer",
             "minimum": 0
@@ -143,6 +145,7 @@ class User(db.Model):
 # User-related resources
 class UserItem(Resource):
 
+    # TODO --> implementation
     def get(self, user):
         db_user = User.query.filter_by(name=user.name).first()
         if not db_user:
@@ -154,48 +157,109 @@ class UserItem(Resource):
     def post(self, user):
         pass
 
+    def delete(self, user):
+        pass
+
 
 class UserCollection(Resource):
 
+    # TODO --> add handling for JSON request type
     def get(self):
-        pass
-
-    def put(self):
-        pass
-
-    def post(self):
-        pass
-
-    def delete(self):
-        pass
+        if request.method != "GET":
+            raise BadRequest
+        users = User.query.all()
+        if not users:
+            raise NotFound
+        return Response("", 200, {"users": [user.name for user in users]})
 
 
 class UserEvents(Resource):
 
     # Check which methods are required here
-    # maybe only get to query the events the user has attended + organized
+    # TODO --> add JSON format handling
     def get(self, user_name):
+        if request.method != "GET":
+            raise BadRequest
         user = User.query.filter_by(name=user_name).first()
         if not user:
             raise NotFound
         events_organized_by_user = Event.query.filter_by(organizer=user.id).all()
+        url = api.url_for(UserEvents, user=user)
         event_infos = {
             "attended_events": user.attended_events,
-            "organized_events": events_organized_by_user
+            "organized_events": events_organized_by_user,
         }
-        return Response("", 201, {"user_name": user.name, "event_infos": event_infos})
-
-    def delete(self):
-        pass
+        return Response("", 201, {"user_name": user.name, "event_infos": event_infos, "url": url})
 
 
 # Event-related resources
 class EventItem(Resource):
-    pass
+
+    # TODO --> add handling for JSON request type
+    def get(self, event_name):
+        if request.method != "GET":
+            raise BadRequest
+        e = Event.query.filter_by(name=event_name).first()
+        if not e:
+            raise NotFound
+        event_information = Event.serialize(e)
+        return event_information
+
+    # TODO --> add handling for JSON request type
+    # TODO --> check functionality of url
+    # TODO --> check what should be the response
+    # TODO --> check response code
+    def post(self, event_name):
+        if request.method != "POST":
+            return BadRequest
+        # Assumed that request is of type JSON
+        contents = request.json
+        if not contents:
+            return Response(status=415)
+
+        try:
+            validate(instance=contents,
+                     schema=Event.json_schema(),
+                     format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER)
+        except ValidationError as ex:
+            raise BadRequest(description=str(ex))
+        e = Event()
+        e.deserialize(contents)
+        db.session.add(e)
+        db.session.commit()
+        url = api.url_for(EventItem, event=event_name)
+        return Response("", 201, {"Location": url})
+
+    # TODO --> add handling for JSON request type
+    # TODO --> figure out deletion in general and how to verify deletion
+    # TODO --> check response
+    def delete(self, event_name):
+        if request.method != "DELETE":
+            return BadRequest
+        event = Event.query.filter_by(name=event_name).first()
+        db.session.delete(event)
+        db.session.commit()
+        success = False
+        try:
+            Event.query.filter_by(name=event_name).first()
+        except IntegrityError:
+            success = True
+        return Response("", 201, {"Deletion": str(success)})
+
+    # TODO --> check if there is a need for PUT method
 
 
 class EventCollection(Resource):
-    pass
+
+    # TODO --> add handling for JSON request type
+    def get(self):
+        if request.method != "GET":
+            raise BadRequest
+        events = Event.query.all()
+        serialized_events = [event.serialize() for event in events]
+        if not events:
+            raise NotFound
+        return serialized_events
 
 
 # Converters
@@ -213,8 +277,8 @@ class UserConverter(BaseConverter):
 
 class EventConverter(BaseConverter):
 
-    def to_python(self, event_id):
-        db_event = Event.query.filter_by(id=event_id).first()
+    def to_python(self, event_name):
+        db_event = Event.query.filter_by(name=event_name).first()
         if not db_event:
             raise NotFound
         return db_event
