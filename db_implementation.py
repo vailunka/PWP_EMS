@@ -16,9 +16,11 @@ import mysql.connector
 
 # Initialize Flask app
 app = Flask(__name__)
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_DATABASE_URI'] = (f"mysql+pymysql://{cfg.DB_USERNAME}:{cfg.DB_PASSWORD}"
-                                         f"@{cfg.DB_HOST}/{cfg.DB_NAME}")
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SQLALCHEMY_DATABASE_URI"] = (
+    f"mysql+pymysql://{cfg.DB_USERNAME}:{cfg.DB_PASSWORD}"
+    f"@{cfg.DB_HOST}/{cfg.DB_NAME}"
+)
 
 # Initialize database
 db = SQLAlchemy(app)
@@ -27,7 +29,9 @@ api = Api(app)
 
 def create_database():
     """Creates the MySQL database with the name cfg.DB_NAME"""
-    database = mysql.connector.connect(host=cfg.DB_HOST, user=cfg.DB_USERNAME, passwd=cfg.DB_PASSWORD)
+    database = mysql.connector.connect(
+        host=cfg.DB_HOST, user=cfg.DB_USERNAME, passwd=cfg.DB_PASSWORD
+    )
     database_cursor = database.cursor()
     try:
         database_cursor.execute(f"CREATE DATABASE {cfg.DB_NAME}")
@@ -38,9 +42,11 @@ def create_database():
         database_cursor.execute(f"CREATE DATABASE {cfg.DB_NAME}")
 
 
-event_participants = db.Table("event_participants",
-                              db.Column("user_id", db.Integer, db.ForeignKey("user.id"), primary_key=True),
-                              db.Column("event_id", db.Integer, db.ForeignKey("event.id"), primary_key=True))
+event_participants = db.Table(
+    "event_participants",
+    db.Column("user_id", db.Integer, db.ForeignKey("user.id"), primary_key=True),
+    db.Column("event_id", db.Integer, db.ForeignKey("event.id"), primary_key=True),
+)
 
 
 class Event(db.Model):
@@ -53,13 +59,17 @@ class Event(db.Model):
     category = db.Column(db.JSON)
     tags = db.Column(db.JSON)
 
-    users = db.relationship("User", secondary=event_participants, back_populates="attended_events")
+    users = db.relationship(
+        "User", secondary=event_participants, back_populates="attended_events"
+    )
 
     def serialize(self, short_form=False):
-        serialized = {"name": self.name,
-                      "location": self.location,
-                      "time": datetime.isoformat(self.time),
-                      "organizer": self.organizer}
+        serialized = {
+            "name": self.name,
+            "location": self.location,
+            "time": datetime.isoformat(self.time),
+            "organizer": self.organizer,
+        }
         if not short_form:
             serialized["description"] = self.description
             serialized["category"] = self.category
@@ -80,26 +90,23 @@ class Event(db.Model):
     def json_schema():
         schema = {
             "type": "object",
-            "required": ["name", "location", "time", "organizer"]
+            "required": ["name", "location", "time", "organizer"],
         }
         properties = schema["properties"] = {}
-        properties["name"] = {
-            "description": "Name of the event",
-            "type": "string"
-        }
+        properties["name"] = {"description": "Name of the event", "type": "string"}
         properties["location"] = {
             "description": "Location of the event",
-            "type": "string"
+            "type": "string",
         }
         properties["time"] = {
             "description": "Time of the event",
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
         }
         properties["organizer"] = {
             "description": "ID of the user who is organizing the event",
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
         }
         return schema
 
@@ -110,36 +117,28 @@ class User(db.Model):
     email = db.Column(db.String(128), nullable=False)
     phone_number = db.Column(db.String(128), nullable=True)
 
-    attended_events = db.relationship("Event", secondary=event_participants, back_populates="users")
+    attended_events = db.relationship(
+        "Event", secondary=event_participants, back_populates="users"
+    )
 
     def serialize(self, short_form=False):
-        serialized = {"name": self.name,
-                      "email": self.email}
+        serialized = {"name": self.name, "email": self.email}
         if not short_form:
-            serialized['phone_number'] = self.phone_number
+            serialized["phone_number"] = self.phone_number
         return serialized
 
     def deserialize(self, serialized_data):
-        self.name = serialized_data['name']
-        self.email = serialized_data['email']
+        self.name = serialized_data["name"]
+        self.email = serialized_data["email"]
         # Optional parameter
-        self.phone_number = serialized_data.get('phone_number')
+        self.phone_number = serialized_data.get("phone_number")
 
     @staticmethod
     def json_schema():
-        schema = {
-            "type": "object",
-            "required": ["name", "email"]
-        }
-        properties = schema['properties'] = {}
-        properties['name'] = {
-            "description": "Name of the user",
-            "type": "string"
-        }
-        properties['email'] = {
-            "description": "Email of the user",
-            "type": "string"
-        }
+        schema = {"type": "object", "required": ["name", "email"]}
+        properties = schema["properties"] = {}
+        properties["name"] = {"description": "Name of the user", "type": "string"}
+        properties["email"] = {"description": "Email of the user", "type": "string"}
         return schema
 
 
@@ -161,9 +160,11 @@ class UserItem(Resource):
         if not contents:
             return Response("", 415)
         try:
-            validate(instance=contents,
-                     schema=User.json_schema(),
-                     format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER)
+            validate(
+                instance=contents,
+                schema=User.json_schema(),
+                format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER,
+            )
         except ValidationError as ex:
             raise BadRequest(description=str(ex))
         user.deserialize(contents)
@@ -194,15 +195,19 @@ class UserCollection(Resource):
         if not users:
             raise NotFound
         return serialized_users
-    
+
     def post(self):
+        if request.method != "POST":
+            return BadRequest
         contents = request.json
         if not contents:
-            raise BadRequest
+            return Response(status=415)
         try:
-            validate(instance=contents,
-                     schema=User.json_schema(),
-                     format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER)
+            validate(
+                instance=contents,
+                schema=User.json_schema(),
+                format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER,
+            )
         except ValidationError as ex:
             raise BadRequest(description=str(ex))
         user = User()
@@ -210,25 +215,60 @@ class UserCollection(Resource):
         db.session.add(user)
         db.session.commit()
         url = api.url_for(UserItem, user=user)
-        return Response("", 201, headers={"Location": url})
+        response = jsonify(user.serialize())
+        response.status_code = 201
+        response.headers["location"] = url
+        return response
 
 
 class UserEvents(Resource):
-
-    # Check which methods are required here
-    # TODO --> add JSON format handling
-    def get(self, user_name):
-        if request.method != "GET":
-            raise BadRequest
-        user = User.query.filter_by(name=user_name).first()
+    def get(self, user):
         if not user:
             raise NotFound
+
         events_organized_by_user = Event.query.filter_by(organizer=user.id).all()
-        url = api.url_for(UserEvents, user=user)
+
+        attended_events_json = []
+        for event in user.attended_events:
+            if hasattr(event.time, "strftime"):  # Check if it's a datetime object
+                time_str = event.time.strftime("%Y-%m-%d %H:%M:%S")
+            attended_events_json.append(
+                {
+                    "id": event.id,
+                    "name": event.name,
+                    "location": event.location,
+                    "time": time_str,
+                    "description": event.description,
+                    "category": event.category,
+                    "tags": event.tags,
+                }
+            )
+
+        organized_events_json = []
+        for event in events_organized_by_user:
+            if hasattr(event.time, "strftime"):  # Check if it's a datetime object
+                time_str = event.time.strftime("%Y-%m-%d %H:%M:%S")
+            organized_events_json.append(
+                {
+                    "id": event.id,
+                    "name": event.name,
+                    "location": event.location,
+                    "time": time_str,
+                    "description": event.description,
+                    "category": event.category,
+                    "tags": event.tags,
+                }
+            )
+
+        # Serialize response
         event_infos = {
-            "attended_events": user.attended_events,
-            "organized_events": events_organized_by_user,
+            "attended_events": attended_events_json,
+            "organized_events": organized_events_json,
         }
+
+        # Generate URL
+        url = api.url_for(UserEvents, user=user)
+
         response = jsonify({"user_name": user.name, "event_infos": event_infos})
         response.status_code = 200
         response.headers["Location"] = url
@@ -256,7 +296,7 @@ class EventItem(Resource):
             validate(
                 instance=contents,
                 schema=Event.json_schema(),
-                format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER
+                format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER,
             )
         except ValidationError as ex:
             raise BadRequest(description=str(ex))
@@ -295,7 +335,7 @@ class EventCollection(Resource):
             validate(
                 instance=contents,
                 schema=Event.json_schema(),
-                format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER
+                format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER,
             )
         except ValidationError as ex:
             raise BadRequest(description=str(ex))
@@ -351,6 +391,8 @@ app.url_map.converters["event"] = EventConverter
 # Endpoints, NOTE: not sure if .../users/... is a needed endpoint
 api.add_resource(UserCollection, "/api/users/")
 api.add_resource(UserItem, "/api/<user:user>/", "/api/users/<user:user>/")
-api.add_resource(UserEvents, "/api/<user:user>/events/", "/api/users/<user:user>/events/")
+api.add_resource(
+    UserEvents, "/api/<user:user>/events/", "/api/users/<user:user>/events/"
+)
 api.add_resource(EventCollection, "/api/events/")
 api.add_resource(EventItem, "/api/events/<event:event>/")

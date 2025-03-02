@@ -7,22 +7,24 @@ import config as cfg
 import json as j
 
 DEFAULT_JSON = {
-            "name": "Shiny New Event",
-            "location": "Uleåborg",
-            "time": "2025-02-28 10:00:00",
-            "organizer": 1,
-            "description": "A very shiny new event!",
-            "category": ["music", "sports"],
-            "tags": ["live-music", "baby-metal-concert"]
-        }
+    "name": "Shiny New Event",
+    "location": "Uleåborg",
+    "time": "2025-02-28 10:00:00",
+    "organizer": 1,
+    "description": "A very shiny new event!",
+    "category": ["music", "sports"],
+    "tags": ["live-music", "baby-metal-concert"],
+}
 
 
 @pytest.fixture
 def test_client():
-    app.config['TESTING'] = True
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['SQLALCHEMY_DATABASE_URI'] = (f"mysql+pymysql://{cfg.DB_USERNAME}:{cfg.DB_PASSWORD}"
-                                             f"@{cfg.DB_HOST}/{cfg.DB_NAME}")
+    app.config["TESTING"] = True
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["SQLALCHEMY_DATABASE_URI"] = (
+        f"mysql+pymysql://{cfg.DB_USERNAME}:{cfg.DB_PASSWORD}"
+        f"@{cfg.DB_HOST}/{cfg.DB_NAME}"
+    )
 
     test_client = app.test_client()
     ctx = app.app_context()
@@ -32,15 +34,23 @@ def test_client():
         db.drop_all()
         db.create_all()
         # populate_database()
-        populate_single_user(name="Joni Maisema", email="joni.maisema@gmail.com", phone_number="12345678")
-        populate_single_user(name="kayttaja kaksi", email="kayttajakaksi@gmail.com", phone_number="00000000")
-        populate_single_event(name=DEFAULT_JSON["name"],
-                              location=DEFAULT_JSON["location"],
-                              time=DEFAULT_JSON["time"],
-                              organizer=DEFAULT_JSON["organizer"],
-                              description=DEFAULT_JSON["description"],
-                              category=DEFAULT_JSON["category"],
-                              tags=DEFAULT_JSON["tags"])
+        populate_single_user(
+            name="Joni Maisema", email="joni.maisema@gmail.com", phone_number="12345678"
+        )
+        populate_single_user(
+            name="kayttaja kaksi",
+            email="kayttajakaksi@gmail.com",
+            phone_number="00000000",
+        )
+        populate_single_event(
+            name=DEFAULT_JSON["name"],
+            location=DEFAULT_JSON["location"],
+            time=DEFAULT_JSON["time"],
+            organizer=DEFAULT_JSON["organizer"],
+            description=DEFAULT_JSON["description"],
+            category=DEFAULT_JSON["category"],
+            tags=DEFAULT_JSON["tags"],
+        )
 
     yield test_client
 
@@ -73,7 +83,7 @@ class TestEventCollection(object):
             "organizer": 1,
             "description": "A very shiny new event!",
             "category": ["music", "sports"],
-            "tags": ["live-music", "baby-metal-concert"]
+            "tags": ["live-music", "baby-metal-concert"],
         }
 
         # Test invalid
@@ -108,14 +118,14 @@ class TestEventItem(object):
     INVALID_URL = "/api/events/sffdsadvsff/"
     MODIFIED_URL = "/api/events/WE ARE YOUNG/"
     VALID_JSON = {
-            "name": "WE ARE YOUNG",
-            "location": "Uleåborg",
-            "time": "2025-02-28 10:00:00",
-            "organizer": 1,
-            "description": "A very shiny new event!",
-            "category": ["music", "sports"],
-            "tags": ["live-music", "baby-metal-concert"]
-        }
+        "name": "WE ARE YOUNG",
+        "location": "Uleåborg",
+        "time": "2025-02-28 10:00:00",
+        "organizer": 1,
+        "description": "A very shiny new event!",
+        "category": ["music", "sports"],
+        "tags": ["live-music", "baby-metal-concert"],
+    }
 
     def test_get(self, test_client):
         # Test valid
