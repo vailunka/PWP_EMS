@@ -1,10 +1,11 @@
-import pytest
-from datetime import datetime
-
-from db_implementation import app, db, create_database, Event
-from db_population import populate_database, populate_single_user, populate_single_event
-import config as cfg
+"""Events tests"""
 import json as j
+import pytest
+
+from db_implementation import app, db, create_database
+from db_population import  populate_single_user, populate_single_event
+import config as cfg
+
 
 DEFAULT_JSON = {
     "name": "Shiny New Event",
@@ -19,6 +20,7 @@ DEFAULT_JSON = {
 
 @pytest.fixture
 def test_client():
+    """Init Test Client"""
     app.config["TESTING"] = True
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SQLALCHEMY_DATABASE_URI"] = (
@@ -59,10 +61,12 @@ def test_client():
     ctx.pop()
 
 
-class TestEventCollection(object):
+class TestEventCollection():
+    """Test for Event Collection"""
     RESOURCE_URL = "/api/events/"
 
     def test_get(self, test_client):
+        """Test for Event Collection GET"""
         response = test_client.get(self.RESOURCE_URL)
         assert response.status_code == 200
         data = response.get_json()
@@ -76,6 +80,7 @@ class TestEventCollection(object):
             assert "tags" in event
 
     def test_post(self, test_client):
+        """Test for Event Collection POST"""
         json = {
             "name": "Shiny New Event",
             "location": "Uleåborg",
@@ -113,7 +118,8 @@ class TestEventCollection(object):
         assert response.status_code == 400
 
 
-class TestEventItem(object):
+class TestEventItem():
+    """ Test for Event Item"""
     RESOURCE_URL = "/api/events/Shiny New Event/"
     INVALID_URL = "/api/events/sffdsadvsff/"
     MODIFIED_URL = "/api/events/WE ARE YOUNG/"
@@ -128,8 +134,8 @@ class TestEventItem(object):
     }
 
     def test_get(self, test_client):
+        """ Test for Event Item GET"""
         # Test valid
-        ev = Event.query.filter_by(name="Shiny New Event").first()
         response = test_client.get(self.RESOURCE_URL)
         assert response.status_code == 200
         data = response.get_json()
@@ -146,6 +152,7 @@ class TestEventItem(object):
         assert response.status_code == 404
 
     def test_put(self, test_client):
+        """ Test for Event Item PUT"""
         json = DEFAULT_JSON.copy()
         # Test wrong content type
         response = test_client.put(self.RESOURCE_URL, data=json)
@@ -179,7 +186,7 @@ class TestEventItem(object):
         assert resp_body["location"] == json["location"]
 
     def test_delete(self, test_client):
-
+        """ Test for Event Item DELETE"""
         # Test item deletion
         response = test_client.delete(self.RESOURCE_URL)
         assert response.status_code == 204
