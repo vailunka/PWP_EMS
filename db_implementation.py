@@ -1,17 +1,15 @@
-import json
+"""This file contains the database implementation, including all the models and resources, etc."""
 
-import config as cfg
+from datetime import datetime
 import jsonschema.validators
 from jsonschema import validate, ValidationError
-from flask import Flask, request, abort, Response, jsonify
+from flask import Flask, request, Response, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_restful import Resource, Api
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy import inspect
 from werkzeug.routing import BaseConverter
 from werkzeug.exceptions import NotFound, BadRequest
-from datetime import datetime
 import mysql.connector
+import config as cfg
 
 
 # Initialize Flask app
@@ -50,6 +48,11 @@ event_participants = db.Table(
 
 
 class Event(db.Model):
+    """
+    Model for the Events.
+    Mandatory attributes are name, location, time and organizer.
+    Optional parameters are description, category and tags
+    """
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), nullable=False)
     location = db.Column(db.String(128), nullable=False)
@@ -59,11 +62,15 @@ class Event(db.Model):
     category = db.Column(db.JSON)
     tags = db.Column(db.JSON)
 
-    users = db.relationship(
-        "User", secondary=event_participants, back_populates="attended_events"
-    )
+    users = db.relationship("User", secondary=event_participants, back_populates="attended_events")
 
     def serialize(self, short_form=False):
+        """
+        Creates a dictionary of Event's attributes.
+
+        :param bool short_form: Returns a short dictionary if True, default is False.
+        :returns dict serialized: Serialized data in dictionary form.
+        """
         serialized = {
             "name": self.name,
             "location": self.location,
@@ -77,6 +84,11 @@ class Event(db.Model):
         return serialized
 
     def deserialize(self, serialized_data):
+        """
+        Assigns Event object attribute values based on the given dictionary.
+
+        :param dict serialized_data: Dictionary containing the information to be deserialized.
+        """
         self.name = serialized_data["name"]
         self.location = serialized_data["location"]
         self.time = datetime.fromisoformat(serialized_data["time"])
@@ -88,6 +100,11 @@ class Event(db.Model):
 
     @staticmethod
     def json_schema():
+        """
+        Creates a JSON schema for Event
+
+        :return dict schema: Returns the JSON schema
+        """
         schema = {
             "type": "object",
             "required": ["name", "location", "time", "organizer"],
@@ -112,6 +129,10 @@ class Event(db.Model):
 
 
 class User(db.Model):
+    """
+    Model for a user.
+    Mandatory attributes are name and email, optional parameter is phone_number.
+    """
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), nullable=False)
     email = db.Column(db.String(128), nullable=False)
@@ -122,12 +143,23 @@ class User(db.Model):
     )
 
     def serialize(self, short_form=False):
+        """
+        Creates a dictionary of User's attributes.
+
+        :param bool short_form: Returns a short dictionary if True, default is False.
+        :returns dict serialized: Serialized data in dictionary form.
+        """
         serialized = {"name": self.name, "email": self.email}
         if not short_form:
             serialized["phone_number"] = self.phone_number
         return serialized
 
     def deserialize(self, serialized_data):
+        """
+        Assigns User object attribute values based on the given dictionary.
+
+        :param dict serialized_data: Dictionary containing the information to be deserialized.
+        """
         self.name = serialized_data["name"]
         self.email = serialized_data["email"]
         # Optional parameter
@@ -135,6 +167,11 @@ class User(db.Model):
 
     @staticmethod
     def json_schema():
+        """
+        Creates a JSON schema for User
+
+        :return dict schema: Returns the JSON schema
+        """
         schema = {"type": "object", "required": ["name", "email"]}
         properties = schema["properties"] = {}
         properties["name"] = {"description": "Name of the user", "type": "string"}
@@ -144,9 +181,17 @@ class User(db.Model):
 
 # User-related resources
 class UserItem(Resource):
+    """
+    A flask-restful Resource that contains GET, PUT and DELETE HTTP methods for an individual user.
+    """
 
-    # TODO --> implementation
     def get(self, user):
+        """
+        Handles the GET HTTP method. Gets information about the user.
+
+        :param User user: User object
+        :returns Response: Response object containing
+        """
         if request.method != "GET":
             raise BadRequest
         response = jsonify(user.serialize())
@@ -154,6 +199,12 @@ class UserItem(Resource):
         return response
 
     def put(self, user):
+        """
+        Handles the PUT HTTP method. PUTs/updates an existing user.
+
+        :param User user: User object
+        :returns Response: Response object containing different statuses depending on success.
+        """
         if request.method != "PUT":
             raise BadRequest
         contents = request.json
@@ -172,6 +223,14 @@ class UserItem(Resource):
         return Response("", 201)
 
     def delete(self, user):
+        """
+        Handles the DELETE HTTP method. Deletes the user from the database.
+        If user is an organizer of any event, deletes the event(s) created by the user
+        before deleting the user.
+
+        :param User user: User object
+        :return Response: Response object with status 204 if successful
+        """
         if request.method != "DELETE":
             return BadRequest
         # Check if user is an organizer of events, and if yes, delete the events first.
@@ -186,8 +245,16 @@ class UserItem(Resource):
 
 
 class UserCollection(Resource):
+    """
+    A flask-restful Resource that contains GET and POST HTTP methods for all the users.
+    """
 
     def get(self):
+        """
+        Handles the GET HTTP method. Gets information about all the users.
+
+        :returns List: List of serialized users
+        """
         if request.method != "GET":
             raise BadRequest
         users = User.query.all()
@@ -197,6 +264,10 @@ class UserCollection(Resource):
         return serialized_users
 
     def post(self):
+        """
+        Handles the POST HTTP method. Creates a new user based on given values in the POST request.
+        :returns response: Response with the dictionary containing the values for created user.
+        """
         if request.method != "POST":
             return BadRequest
         contents = request.json
@@ -222,12 +293,23 @@ class UserCollection(Resource):
 
 
 class UserEvents(Resource):
+    """
+    A flask-restful Resource that contains a GET HTTP method for events that user has attended
+    or organized.
+    """
+
     def get(self, user):
+        """
+        Handles the GET HTTP method. Gets information about the events
+        user has attended or organized.
+
+        :returns Response: Response containing the events user has organized or attended.
+        """
         if not user:
             raise NotFound
 
         events_organized_by_user = Event.query.filter_by(organizer=user.id).all()
-
+        time_str = ""
         attended_events_json = []
         for event in user.attended_events:
             if hasattr(event.time, "strftime"):  # Check if it's a datetime object
@@ -277,8 +359,17 @@ class UserEvents(Resource):
 
 # Event-related resources
 class EventItem(Resource):
+    """
+    A flask-restful Resource that contains the GET, PUT and DELETE HTTP methods
+    for individual events.
+    """
 
     def get(self, event):
+        """
+        Handles the GET HTTP method. Gets information about an individual event.
+
+        :returns Response: Response containing the event information
+        """
         if request.method != "GET":
             raise BadRequest
         response = jsonify(event.serialize())
@@ -286,6 +377,11 @@ class EventItem(Resource):
         return response
 
     def put(self, event):
+        """
+        Handles the PUT HTTP method. PUTs/modifies an existing event.
+
+        :returns Response: Response containing the event information
+        """
         if request.method != "PUT":
             raise BadRequest
         contents = request.json
@@ -306,6 +402,11 @@ class EventItem(Resource):
         return Response(response=url, status=200)
 
     def delete(self, event):
+        """
+        Handles the DELETE HTTP method. Deletes an event.
+
+        :returns Response: Response with status code 204
+        """
         if request.method != "DELETE":
             return BadRequest
         db.session.delete(event)
@@ -314,8 +415,16 @@ class EventItem(Resource):
 
 
 class EventCollection(Resource):
+    """
+    A flask-restful Resource that contains the GET and POST HTTP methods for all events.
+    """
 
     def get(self):
+        """
+        Handles the GET HTTP method. Gets information about all the events.
+
+        :returns List: Returns a list of serialized events.
+        """
         if request.method != "GET":
             raise BadRequest
         events = Event.query.all()
@@ -325,6 +434,12 @@ class EventCollection(Resource):
         return serialized_events
 
     def post(self):
+        """
+        Handles the POST HTTP method. Creates a new event based on given values in the POST request.
+
+        :returns Response: Response with the serialized information about the event with
+                           a status code
+        """
         if request.method != "POST":
             return BadRequest
         contents = request.json
@@ -361,27 +476,35 @@ class EventCollection(Resource):
 
 # Converters
 class UserConverter(BaseConverter):
+    """
+    A werkzeug routing BaseConverter converter that is used to map User objects to an url
+    and vice-versa.
+    """
 
-    def to_python(self, user_name):
-        db_user = User.query.filter_by(name=user_name).first()
+    def to_python(self, value):
+        db_user = User.query.filter_by(name=value).first()
         if not db_user:
             raise NotFound
         return db_user
 
-    def to_url(self, db_user):
-        return db_user.name
+    def to_url(self, value):
+        return value.name
 
 
 class EventConverter(BaseConverter):
+    """
+    A werkzeug routing BaseConverter converter that is used to map Event objects to an url
+    and vice-versa.
+    """
 
-    def to_python(self, event_name):
-        db_event = Event.query.filter_by(name=event_name).first()
+    def to_python(self, value):
+        db_event = Event.query.filter_by(name=value).first()
         if not db_event:
             raise NotFound
         return db_event
 
-    def to_url(self, db_event):
-        return db_event.name
+    def to_url(self, value):
+        return value.name
 
 
 # Converter mappings

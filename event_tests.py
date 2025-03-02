@@ -3,7 +3,7 @@ import json as j
 import pytest
 
 from db_implementation import app, db, create_database
-from db_population import  populate_single_user, populate_single_event
+from db_population import populate_single_user, populate_single_event
 import config as cfg
 
 
@@ -51,7 +51,7 @@ def test_client():
             organizer=DEFAULT_JSON["organizer"],
             description=DEFAULT_JSON["description"],
             category=DEFAULT_JSON["category"],
-            tags=DEFAULT_JSON["tags"],
+            event_tags=DEFAULT_JSON["tags"],
         )
 
     yield test_client
