@@ -1,3 +1,5 @@
+"""This file is for populating"""
+
 import random
 from faker import Faker
 from db_implementation import db, app, User, Event, create_database
@@ -50,7 +52,8 @@ def populate_database():
     print("Users:")
     for user in users_query:
         print(
-            f"id:{user.id}, name:{user.name}, email:{user.email}, phone_number:{user.phone_number}, "
+            f"id:{user.id}, name:{user.name}, email:{user.email},\
+            phone_number:{user.phone_number}, "
             f"events:{user.attended_events}"
         )
     # Populating random.randint() amount of events with fake data
@@ -73,7 +76,8 @@ def populate_database():
     for event_info in events_query:
         print(
             f"id:{event_info.id}, location:{event_info.location}, time:{event_info.time},"
-            f"description:{event_info.description}, organizer:{event_info.organizer}, category:{event_info.category}"
+            f"description:{event_info.description}, organizer:{event_info.organizer}, \
+            category:{event_info.category}"
         )
     print("\nPopulating event participants table")
     for ev in events_query:
@@ -93,6 +97,7 @@ def populate_database():
 
 
 def populate_single_user(name, email, phone_number=""):
+    """Populating single user for tests"""
     if phone_number:
         user = User(name=name, email=email, phone_number=phone_number)
     else:
@@ -108,21 +113,22 @@ def populate_single_event(
     organizer=None,
     description="",
     category=None,
-    tags=None,
+    event_tags=None,
 ):
-    if description and category and tags:
-        event = Event(
+    """Populates single event"""
+    if description and category and event_tags:
+        new_event = Event(
             name=name,
             location=location,
             time=time,
             description=description,
             organizer=organizer,
             category=category,
-            tags=tags,
+            tags=event_tags,
         )
     else:
-        event = Event(name=name, location=location, time=time, organizer=organizer)
-    db.session.add(event)
+        new_event = Event(name=name, location=location, time=time, organizer=organizer)
+    db.session.add(new_event)
     db.session.commit()
 
 
@@ -147,8 +153,8 @@ if __name__ == "__main__":
         # Print the filtered events
         category_events = Event.query.filter(Event.category.contains("music")).all()
         print("\nFiltered Events:")
-        for event in category_events:
-            print(f"Name: {event.name},  Categories: {event.category}")
+        for events in category_events:
+            print(f"Name: {events.name},  Categories: {events.category}")
 
         tags_events = Event.query.filter(Event.tags.contains("jazz-concert")).all()
         print("\nFiltered tags:")
