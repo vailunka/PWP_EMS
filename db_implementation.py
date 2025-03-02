@@ -183,13 +183,11 @@ class UserCollection(Resource):
     def get(self):
         if request.method != "GET":
             raise BadRequest
-        contents = request.json
-        if not contents:
-            return Response("", 415)
         users = User.query.all()
+        serialized_users = [user.serialize() for user in users]
         if not users:
             raise NotFound
-        return Response("", 200, {"users": [user.name for user in users]})
+        return serialized_users
     
     def post(self):
         contents = request.json
