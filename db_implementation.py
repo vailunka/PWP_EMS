@@ -148,9 +148,11 @@ class UserItem(Resource):
 
     # TODO --> implementation
     def get(self, user):
-        db_user = User.query.filter_by(name=user.name).first()
-        if not db_user:
-            raise NotFound
+        if request.method != "GET":
+            raise BadRequest
+        response = jsonify(user.serialize())
+        response.status_code = 200
+        return response
 
     def put(self, user):
         if request.method != "PUT":
@@ -169,9 +171,11 @@ class UserItem(Resource):
         return Response("", 201)
 
     def delete(self, user):
+        if request.method != "DELETE":
+            return BadRequest
         db.session.delete(user)
         db.session.commit()
-        return Response("", 200)
+        return Response(status=204)
 
 
 class UserCollection(Resource):
