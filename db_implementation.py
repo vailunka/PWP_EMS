@@ -173,6 +173,15 @@ class UserItem(Resource):
     def delete(self, user):
         if request.method != "DELETE":
             return BadRequest
+        contents = request.json
+        if not contents:
+            return Response(status=415)
+        # Check if user is an organizer of events, and if yes, delete the events first.
+        events_organized_by_user = Event.query.filter_by(organizer=user.id).all()
+        if events_organized_by_user:
+            for event in events_organized_by_user:
+                db.session.delete(event)
+            db.session.commit()
         db.session.delete(user)
         db.session.commit()
         return Response(status=204)
