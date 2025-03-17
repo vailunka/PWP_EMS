@@ -52,7 +52,7 @@ def test_client():
             organizer=DEFAULT_JSON["organizer"],
             description=DEFAULT_JSON["description"],
             category=DEFAULT_JSON["category"],
-            tags=DEFAULT_JSON["tags"],
+            event_tags=DEFAULT_JSON["tags"],
         )
 
     yield client
