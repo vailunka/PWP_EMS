@@ -62,8 +62,8 @@ def test_client():
             event_tags=DEFAULT_JSON["tags"],
         )
 
-        event = populate_single_event(SECOND_JSON["name"], SECOND_JSON["location"], SECOND_JSON["time"],
-                                      organizer=SECOND_JSON["organizer"])
+        event = populate_single_event(SECOND_JSON["name"], SECOND_JSON["location"],
+                                      SECOND_JSON["time"], organizer=SECOND_JSON["organizer"])
         add_user_to_event(user, event)
 
     yield test_client
