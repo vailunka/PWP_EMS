@@ -18,14 +18,14 @@ Overall strucuture of project, went through the first deliverable
 
 
 ## Meeting 2.
-* **DATE:**
-* **ASSISTANTS:**
+* **DATE:18.2.2025**
+* **ASSISTANTS: Iván**
 
 ### Minutes
-*Summary of what was discussed during the meeting*
+Database structure, is everything in the correct format, AI use reporting
 
 ### Action points
-*List here the actions points discussed with assistants*
+Change EventParticipants from a Model to a table, report more clearly the ways we use AI, for example using it for formatting the .md file etc.
 
 
 
