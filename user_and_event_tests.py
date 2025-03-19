@@ -1,4 +1,4 @@
-"""Events tests"""
+"""User and Event tests"""
 import json as j
 import pytest
 
