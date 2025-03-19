@@ -104,6 +104,7 @@ def populate_single_user(name, email, phone_number=""):
         user = User(name=name, email=email)
     db.session.add(user)
     db.session.commit()
+    return user
 
 
 def populate_single_event(
@@ -130,6 +131,12 @@ def populate_single_event(
         new_event = Event(name=name, location=location, time=time, organizer=organizer)
     db.session.add(new_event)
     db.session.commit()
+    return new_event
+
+
+def add_user_to_event(user, event):
+    """Adds user to an event as an participant"""
+    event.users.append(user)
 
 
 # if __name__ == "__main__":
