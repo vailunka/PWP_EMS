@@ -75,7 +75,7 @@ class Event(db.Model):
             "name": self.name,
             "location": self.location,
             "time": datetime.isoformat(self.time),
-            "organizer": self.organizer,
+            "organizer": self.organizer
         }
         if not short_form:
             serialized["description"] = self.description
@@ -107,23 +107,23 @@ class Event(db.Model):
         """
         schema = {
             "type": "object",
-            "required": ["name", "location", "time", "organizer"],
+            "required": ["name", "location", "time", "organizer"]
         }
         properties = schema["properties"] = {}
         properties["name"] = {"description": "Name of the event", "type": "string"}
         properties["location"] = {
             "description": "Location of the event",
-            "type": "string",
+            "type": "string"
         }
         properties["time"] = {
             "description": "Time of the event",
             "type": "string",
-            "format": "date-time",
+            "format": "date-time"
         }
         properties["organizer"] = {
             "description": "ID of the user who is organizing the event",
             "type": "integer",
-            "minimum": 0,
+            "minimum": 0
         }
         return schema
 
@@ -192,8 +192,6 @@ class UserItem(Resource):
         :param User user: User object
         :returns Response: Response object containing
         """
-        if request.method != "GET":
-            raise BadRequest
         response = jsonify(user.serialize())
         response.status_code = 200
         return response
@@ -205,22 +203,19 @@ class UserItem(Resource):
         :param User user: User object
         :returns Response: Response object containing different statuses depending on success.
         """
-        if request.method != "PUT":
-            raise BadRequest
         contents = request.json
-        if not contents:
-            return Response("", 415)
         try:
             validate(
                 instance=contents,
                 schema=User.json_schema(),
-                format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER,
+                format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER
             )
         except ValidationError as ex:
             raise BadRequest(description=str(ex))
         user.deserialize(contents)
         db.session.commit()
-        return Response("", 201)
+        url = api.url_for(UserItem, user=user)
+        return Response(response=url, status=201)
 
     def delete(self, user):
         """
@@ -231,8 +226,6 @@ class UserItem(Resource):
         :param User user: User object
         :return Response: Response object with status 204 if successful
         """
-        if request.method != "DELETE":
-            return BadRequest
         # Check if user is an organizer of events, and if yes, delete the events first.
         events_organized_by_user = Event.query.filter_by(organizer=user.id).all()
         if events_organized_by_user:
@@ -255,24 +248,17 @@ class UserCollection(Resource):
 
         :returns List: List of serialized users
         """
-        if request.method != "GET":
-            raise BadRequest
         users = User.query.all()
         serialized_users = [user.serialize() for user in users]
-        if not users:
-            raise NotFound
         return serialized_users
 
     def post(self):
         """
         Handles the POST HTTP method. Creates a new user based on given values in the POST request.
+
         :returns response: Response with the dictionary containing the values for created user.
         """
-        if request.method != "POST":
-            return BadRequest
         contents = request.json
-        if not contents:
-            return Response(status=415)
         try:
             validate(
                 instance=contents,
@@ -301,53 +287,24 @@ class UserEvents(Resource):
     def get(self, user):
         """
         Handles the GET HTTP method. Gets information about the events
-        user has attended or organized.
+        user has attended and/or organized.
 
         :returns Response: Response containing the events user has organized or attended.
         """
-        if not user:
-            raise NotFound
-
         events_organized_by_user = Event.query.filter_by(organizer=user.id).all()
-        time_str = ""
         attended_events_json = []
         for event in user.attended_events:
-            if hasattr(event.time, "strftime"):  # Check if it's a datetime object
-                time_str = event.time.strftime("%Y-%m-%d %H:%M:%S")
-            attended_events_json.append(
-                {
-                    "id": event.id,
-                    "name": event.name,
-                    "location": event.location,
-                    "time": time_str,
-                    "description": event.description,
-                    "category": event.category,
-                    "tags": event.tags,
-                }
-            )
+            attended_events_json.append(event.serialize())
 
         organized_events_json = []
         for event in events_organized_by_user:
-            if hasattr(event.time, "strftime"):  # Check if it's a datetime object
-                time_str = event.time.strftime("%Y-%m-%d %H:%M:%S")
-            organized_events_json.append(
-                {
-                    "id": event.id,
-                    "name": event.name,
-                    "location": event.location,
-                    "time": time_str,
-                    "description": event.description,
-                    "category": event.category,
-                    "tags": event.tags,
-                }
-            )
+            organized_events_json.append(event.serialize())
 
         # Serialize response
         event_infos = {
             "attended_events": attended_events_json,
             "organized_events": organized_events_json,
         }
-
         # Generate URL
         url = api.url_for(UserEvents, user=user)
 
@@ -370,8 +327,6 @@ class EventItem(Resource):
 
         :returns Response: Response containing the event information
         """
-        if request.method != "GET":
-            raise BadRequest
         response = jsonify(event.serialize())
         response.status_code = 200
         return response
@@ -382,12 +337,7 @@ class EventItem(Resource):
 
         :returns Response: Response containing the event information
         """
-        if request.method != "PUT":
-            raise BadRequest
         contents = request.json
-        if not contents:
-            return Response(status=415)
-        # Validation
         try:
             validate(
                 instance=contents,
@@ -407,8 +357,6 @@ class EventItem(Resource):
 
         :returns Response: Response with status code 204
         """
-        if request.method != "DELETE":
-            return BadRequest
         db.session.delete(event)
         db.session.commit()
         return Response(status=204)
@@ -425,12 +373,8 @@ class EventCollection(Resource):
 
         :returns List: Returns a list of serialized events.
         """
-        if request.method != "GET":
-            raise BadRequest
         events = Event.query.all()
         serialized_events = [event.serialize() for event in events]
-        if not events:
-            raise NotFound
         return serialized_events
 
     def post(self):
@@ -440,11 +384,7 @@ class EventCollection(Resource):
         :returns Response: Response with the serialized information about the event with
                            a status code
         """
-        if request.method != "POST":
-            return BadRequest
         contents = request.json
-        if not contents:
-            return Response(status=415)
         # Validation
         try:
             validate(
