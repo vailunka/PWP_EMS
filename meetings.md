@@ -32,13 +32,15 @@ Change EventParticipants from a Model to a table, report more clearly the ways w
 
 ## Meeting 3.
 * **DATE:**
-* **ASSISTANTS:**
+* **ASSISTANTS:Mika**
 
 ### Minutes
-*Summary of what was discussed during the meeting*
+No complaining besides action points.
 
 ### Action points
-*List here the actions points discussed with assistants*
+*Fix folder structure
+*Use only one USER endpoint
+*Instruction for how to run etc.
 
 
 
