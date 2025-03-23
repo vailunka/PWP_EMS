@@ -31,16 +31,14 @@ Change EventParticipants from a Model to a table, report more clearly the ways w
 
 
 ## Meeting 3.
-* **DATE:**
+* **DATE:21.3.2025**
 * **ASSISTANTS:Mika**
 
 ### Minutes
 No complaining besides action points.
 
 ### Action points
-*Fix folder structure
-*Use only one USER endpoint
-*Instruction for how to run etc.
+Fix folder structure. Use only one USER endpoint. Instruction for how to run.
 
 
 
