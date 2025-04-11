@@ -35,7 +35,7 @@ Change EventParticipants from a Model to a table, report more clearly the ways w
 * **ASSISTANTS:Mika**
 
 ### Minutes
-No complaining besides action points.
+No complaints besides the action points.
 
 ### Action points
 Fix folder structure. Use only one USER endpoint. Instruction for how to run.

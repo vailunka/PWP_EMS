@@ -2,8 +2,8 @@
 import json as j
 import pytest
 
-from db_implementation import app, db, create_database
-from db_population import populate_single_user, populate_single_event, add_user_to_event
+from src.db_implementation import app, db, create_database
+from src.db_population import populate_single_user, populate_single_event, add_user_to_event
 import config as cfg
 
 

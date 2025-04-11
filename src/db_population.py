@@ -2,7 +2,7 @@
 
 import random
 from faker import Faker
-from db_implementation import db, app, User, Event, create_database
+from src.db_implementation import db, app, User, Event, create_database
 
 
 fake = Faker()
@@ -135,7 +135,7 @@ def populate_single_event(
 
 
 def add_user_to_event(user, event):
-    """Adds user to an event as an participant"""
+    """Adds user to an event as a participant"""
     event.users.append(user)
 
 
