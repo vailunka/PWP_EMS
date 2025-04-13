@@ -2,7 +2,7 @@
 
 import random
 from faker import Faker
-from src.db_implementation import db, app, User, Event, create_database
+from src.resources_and_models import db, app, User, Event, create_database
 
 
 fake = Faker()

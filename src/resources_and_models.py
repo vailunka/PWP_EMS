@@ -451,11 +451,8 @@ class EventConverter(BaseConverter):
 app.url_map.converters["user"] = UserConverter
 app.url_map.converters["event"] = EventConverter
 
-# Endpoints, NOTE: not sure if .../users/... is a needed endpoint
 api.add_resource(UserCollection, "/api/users/")
-api.add_resource(UserItem, "/api/<user:user>/", "/api/users/<user:user>/")
-api.add_resource(
-    UserEvents, "/api/<user:user>/events/", "/api/users/<user:user>/events/"
-)
+api.add_resource(UserItem, "/api/users/<user:user>/")
+api.add_resource(UserEvents, "/api/users/<user:user>/events/")
 api.add_resource(EventCollection, "/api/events/")
 api.add_resource(EventItem, "/api/events/<event:event>/")

@@ -2,7 +2,7 @@
 import json as j
 import pytest
 
-from src.db_implementation import app, db, create_database
+from src.resources_and_models import app, db, create_database
 from src.db_population import populate_single_user, populate_single_event, add_user_to_event
 import config as cfg
 

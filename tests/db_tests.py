@@ -2,7 +2,7 @@ import pytest
 from flask import Flask
 from datetime import datetime
 
-from src.db_implementation import db, Event, User, create_database
+from src.resources_and_models import db, Event, User, create_database
 import config as cfg
 
 
