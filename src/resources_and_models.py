@@ -10,7 +10,8 @@ from werkzeug.routing import BaseConverter
 from werkzeug.exceptions import NotFound, BadRequest
 import mysql.connector
 import config as cfg
-
+from flasgger import Swagger
+import pymysql
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -19,6 +20,8 @@ app.config["SQLALCHEMY_DATABASE_URI"] = (
     f"mysql+pymysql://{cfg.DB_USERNAME}:{cfg.DB_PASSWORD}"
     f"@{cfg.DB_HOST}/{cfg.DB_NAME}"
 )
+
+swagger = Swagger(app, template_file='doc/swagger.yaml')
 
 # Initialize database
 db = SQLAlchemy(app)
@@ -456,3 +459,8 @@ api.add_resource(UserItem, "/api/users/<user:user>/")
 api.add_resource(UserEvents, "/api/users/<user:user>/events/")
 api.add_resource(EventCollection, "/api/events/")
 api.add_resource(EventItem, "/api/events/<event:event>/")
+
+if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
+    app.run(debug=True)
