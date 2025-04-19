@@ -1,13 +1,16 @@
 """This file contains the database implementation, including all the models and resources, etc."""
 
 from datetime import datetime
+import hashlib
+import secrets
 import jsonschema.validators
 from jsonschema import validate, ValidationError
 from flask import Flask, request, Response, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_restful import Resource, Api
+from flask_caching import Cache
 from werkzeug.routing import BaseConverter
-from werkzeug.exceptions import NotFound, BadRequest
+from werkzeug.exceptions import NotFound, BadRequest, Forbidden
 import mysql.connector
 import config as cfg
 from flasgger import Swagger
@@ -20,12 +23,15 @@ app.config["SQLALCHEMY_DATABASE_URI"] = (
     f"mysql+pymysql://{cfg.DB_USERNAME}:{cfg.DB_PASSWORD}"
     f"@{cfg.DB_HOST}/{cfg.DB_NAME}"
 )
+app.config["CACHE_TYPE"] = "FileSystemCache"
+app.config["CACHE_DIR"] = ".cache"
 
 swagger = Swagger(app, template_file='doc/swagger.yaml')
 
 # Initialize database
 db = SQLAlchemy(app)
 api = Api(app)
+cache = Cache(app)
 
 
 def create_database():
@@ -43,11 +49,57 @@ def create_database():
         database_cursor.execute(f"CREATE DATABASE {cfg.DB_NAME}")
 
 
+def require_admin(func):
+    def wrapper(*args, **kwargs):
+        key_header = request.headers.get("EMS-Api-Key")
+        if not key_header:
+            raise Forbidden("Missing admin API key")
+
+        key_hash = ApiKey.key_hash(key_header.strip())
+        db_key = ApiKey.query.filter_by(admin=True).first()
+
+        if db_key is None or not secrets.compare_digest(key_hash, db_key.key):
+            raise Forbidden("Invalid admin API key")
+
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def require_user_key(func):
+    def wrapper(self, user, *args, **kwargs):
+        key_header = request.headers.get("User-Api-Key")
+        if not key_header:
+            raise Forbidden("Missing API key")
+
+        key_hash = ApiKey.key_hash(key_header.strip())
+        db_key = ApiKey.query.filter_by(user_id=user.id).first()
+
+        if db_key is None or not secrets.compare_digest(key_hash, db_key.key):
+            raise Forbidden("Invalid API key")
+
+        return func(self, user, *args, **kwargs)
+
+    return wrapper
+
+
 event_participants = db.Table(
     "event_participants",
     db.Column("user_id", db.Integer, db.ForeignKey("user.id"), primary_key=True),
     db.Column("event_id", db.Integer, db.ForeignKey("event.id"), primary_key=True),
 )
+
+
+class ApiKey(db.Model):
+    key = db.Column(db.BINARY(32), primary_key=True, nullable=False, unique=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    admin = db.Column(db.Boolean, default=False)
+
+    user = db.relationship("User", back_populates="api_key", uselist=False)
+
+    @staticmethod
+    def key_hash(key):
+        return hashlib.sha256(key.encode()).digest()
 
 
 class Event(db.Model):
@@ -145,6 +197,8 @@ class User(db.Model):
         "Event", secondary=event_participants, back_populates="users"
     )
 
+    api_key = db.relationship("ApiKey", back_populates="user", uselist=False)
+
     def serialize(self, short_form=False):
         """
         Creates a dictionary of User's attributes.
@@ -188,6 +242,8 @@ class UserItem(Resource):
     A flask-restful Resource that contains GET, PUT and DELETE HTTP methods for an individual user.
     """
 
+    @cache.cached()
+    @require_user_key
     def get(self, user):
         """
         Handles the GET HTTP method. Gets information about the user.
@@ -199,6 +255,7 @@ class UserItem(Resource):
         response.status_code = 200
         return response
 
+    @require_user_key
     def put(self, user):
         """
         Handles the PUT HTTP method. PUTs/updates an existing user.
@@ -218,8 +275,10 @@ class UserItem(Resource):
         user.deserialize(contents)
         db.session.commit()
         url = api.url_for(UserItem, user=user)
-        return Response(response=url, status=201)
+        headers = {"location": url}
+        return Response(status=201, headers=headers)
 
+    @require_user_key
     def delete(self, user):
         """
         Handles the DELETE HTTP method. Deletes the user from the database.
@@ -245,6 +304,8 @@ class UserCollection(Resource):
     A flask-restful Resource that contains GET and POST HTTP methods for all the users.
     """
 
+    @cache.cached()
+    @require_admin
     def get(self):
         """
         Handles the GET HTTP method. Gets information about all the users.
@@ -274,11 +335,22 @@ class UserCollection(Resource):
         user.deserialize(contents)
         db.session.add(user)
         db.session.commit()
+        # api key logic, return token in the headers
+        user_token = secrets.token_urlsafe()
+        user_key = ApiKey(key=ApiKey.key_hash(user_token), user_id=user.id)
+        db.session.add(user_key)
+        db.session.commit()
         url = api.url_for(UserItem, user=user)
-        response = jsonify(user.serialize())
-        response.status_code = 201
-        response.headers["location"] = url
-        return response
+        # POST should not have a response body, only a header to the url
+        # response = jsonify(user.serialize())
+        # response.status_code = 201
+        headers = {"location": url, "User-Api-Key": user_token}
+        # response.headers = headers
+        return Response(status=201, headers=headers)
+
+    def _clear_cache(self):
+        collection_path = api.url_for(UserCollection)
+        cache.delete_many((collection_path, request.path))
 
 
 class UserEvents(Resource):
@@ -287,6 +359,8 @@ class UserEvents(Resource):
     or organized.
     """
 
+    @cache.cached()
+    @require_user_key
     def get(self, user):
         """
         Handles the GET HTTP method. Gets information about the events
@@ -316,6 +390,10 @@ class UserEvents(Resource):
         response.headers["Location"] = url
         return response
 
+    def _clear_cache(self):
+        collection_path = api.url_for(UserEvents)
+        cache.delete_many((collection_path, request.path))
+
 
 # Event-related resources
 class EventItem(Resource):
@@ -324,6 +402,7 @@ class EventItem(Resource):
     for individual events.
     """
 
+    @cache.cached()
     def get(self, event):
         """
         Handles the GET HTTP method. Gets information about an individual event.
@@ -364,12 +443,17 @@ class EventItem(Resource):
         db.session.commit()
         return Response(status=204)
 
+    def _clear_cache(self):
+        collection_path = api.url_for(EventItem)
+        cache.delete_many((collection_path, request.path))
+
 
 class EventCollection(Resource):
     """
     A flask-restful Resource that contains the GET and POST HTTP methods for all events.
     """
 
+    @cache.cached()
     def get(self):
         """
         Handles the GET HTTP method. Gets information about all the events.
@@ -398,6 +482,11 @@ class EventCollection(Resource):
         except ValidationError as ex:
             raise BadRequest(description=str(ex))
 
+        # Check that event is not created in the past
+        event_time = datetime.fromisoformat(contents["time"])
+        current_time = datetime.now()
+        if event_time < current_time:
+            raise ValueError("Event's time cannot be in the past when creating it.")
         # Check if an event with the same name already exists
         # existing_event = Event.query.filter_by(name=contents["name"]).first()
         # if existing_event:
@@ -411,10 +500,14 @@ class EventCollection(Resource):
         # Return the response with the location header
         url = api.url_for(EventItem, event=e)
 
-        response = jsonify(e.serialize())
-        response.status_code = 201
-        response.headers["location"] = url
-        return response
+        # response = jsonify(e.serialize())
+        # response.status_code = 201
+        # response.headers["location"] = url
+        return Response(status=201, headers={"location": url})
+
+    def _clear_cache(self):
+        collection_path = api.url_for(EventCollection)
+        cache.delete_many((collection_path, request.path))
 
 
 # Converters
@@ -461,6 +554,7 @@ api.add_resource(EventCollection, "/api/events/")
 api.add_resource(EventItem, "/api/events/<event:event>/")
 
 if __name__ == "__main__":
+    create_database()
     with app.app_context():
         db.create_all()
     app.run(debug=True)
