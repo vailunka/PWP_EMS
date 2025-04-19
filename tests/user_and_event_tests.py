@@ -1,8 +1,8 @@
 """User and Event tests"""
 import json as j
 import pytest
-
-from src.resources_and_models import app, db, create_database
+import secrets
+from src.resources_and_models import app, db, create_database, ApiKey
 from src.db_population import populate_single_user, populate_single_event, add_user_to_event
 import config as cfg
 
@@ -10,7 +10,7 @@ import config as cfg
 DEFAULT_JSON = {
     "name": "Shiny New Event",
     "location": "Uleåborg",
-    "time": "2025-02-28T10:00:00",
+    "time": "2026-02-28T10:00:00",
     "organizer": 1,
     "description": "A very shiny new event!",
     "category": ["music", "sports"],
@@ -25,7 +25,24 @@ SECOND_JSON = {
 }
 
 USER_JSON = {"name": "Test User", "email": "Test@gmail.com", "phone_number": "00584"}
+JONI_MAISEMA_APIKEY = None
+JONI_MAISEMA_TOKEN = None
+KAYTTAJA_KAKSI_APIKEY = None
+KAYTTAJA_KAKSI_TOKEN = None
+ADMIN_API_TOKEN = None
+ADMIN_API_KEY = None
 
+
+def insert_apikey_values(joni_key, joni_token, kaksi_key, kaksi_token, admin_api_key, admin_api_token):
+    global JONI_MAISEMA_APIKEY, JONI_MAISEMA_TOKEN
+    global KAYTTAJA_KAKSI_APIKEY, KAYTTAJA_KAKSI_TOKEN
+    global ADMIN_API_KEY, ADMIN_API_TOKEN
+    JONI_MAISEMA_APIKEY = joni_key
+    JONI_MAISEMA_TOKEN = joni_token
+    KAYTTAJA_KAKSI_APIKEY = kaksi_key
+    KAYTTAJA_KAKSI_TOKEN = kaksi_token
+    ADMIN_API_KEY = admin_api_key
+    ADMIN_API_TOKEN = admin_api_token
 
 @pytest.fixture
 def test_client():
@@ -48,10 +65,25 @@ def test_client():
         user = populate_single_user(
             name="Joni Maisema", email="joni.maisema@gmail.com", phone_number="12345678"
         )
-        populate_single_user(
+        user_two = populate_single_user(
             name="kayttaja kaksi",
             email="kayttajakaksi@gmail.com"
         )
+        user_one_token = secrets.token_urlsafe()
+        user_one_key = ApiKey(key=ApiKey.key_hash(user_one_token), user_id=user.id)
+        user_two_token = secrets.token_urlsafe()
+        user_two_key = ApiKey(key=ApiKey.key_hash(user_two_token), user_id=user_two.id)
+        db.session.add(user_one_key)
+        db.session.commit()
+        db.session.add(user_two_key)
+        db.session.commit()
+        admin_token = secrets.token_urlsafe()
+        admin_api_key = ApiKey(key=ApiKey.key_hash(admin_token), admin=True)
+        db.session.add(admin_api_key)
+        db.session.commit()
+        # insert_apikey_values(joni_key, joni_token, kaksi_key, kaksi_token):
+        insert_apikey_values(user_one_key, user_one_token, user_two_key, user_two_token, admin_api_key, admin_token)
+        print(f"JONI MAISEMA: {JONI_MAISEMA_APIKEY}, KAYTTAJA KAKSI: {KAYTTAJA_KAKSI_APIKEY}")
         populate_single_event(
             name=DEFAULT_JSON["name"],
             location=DEFAULT_JSON["location"],
@@ -110,7 +142,7 @@ class TestEventCollection:
         assert data
         assert data["name"] == "Shiny New Event"
         assert data["location"] == "Uleåborg"
-        assert data["time"] == "2025-02-28T10:00:00"
+        assert data["time"] == "2026-02-28T10:00:00"
         assert data["organizer"] == 1
         assert data["description"] == "A very shiny new event!"
         assert data["category"] == ["music", "sports"]
@@ -224,7 +256,7 @@ class TestUserItem:
     def test_get(self, test_client):
         """Test for UserItem GET"""
         # Test valid
-        response = test_client.get(self.RESOURCE_URL)
+        response = test_client.get(self.RESOURCE_URL, headers={"User-Api-Key": JONI_MAISEMA_TOKEN})
         assert response.status_code == 200
         data = response.get_json()
         assert data
@@ -244,32 +276,32 @@ class TestUserItem:
             "phone_number": "1234567",
         }
         # Test valid
-        response = test_client.put(self.RESOURCE_URL, json=json)
+        response = test_client.put(self.RESOURCE_URL, json=json, headers={"User-Api-Key": JONI_MAISEMA_TOKEN})
         assert response.status_code == 201
 
         # NOTE: from hereon, the only valid url is /api/users/Test PUT/
 
         # Test wrong url
-        response = test_client.put(self.INVALID_URL, json=json)
+        response = test_client.put(self.INVALID_URL, json=json, headers={"User-Api-Key": JONI_MAISEMA_TOKEN})
         assert response.status_code == 404
 
         # Test wrong content
-        response = test_client.put("/api/users/Test PUT/", data=json)
+        response = test_client.put("/api/users/Test PUT/", data=json, headers={"User-Api-Key": JONI_MAISEMA_TOKEN})
         assert response.status_code == 415
         # Test missing field
         json.pop("email")
-        response = test_client.put("/api/users/Test PUT/", json=json)
+        response = test_client.put("/api/users/Test PUT/", json=json, headers={"User-Api-Key": JONI_MAISEMA_TOKEN})
         assert response.status_code == 400
 
     def test_delete(self, test_client):
         """Test for UserItem DELETE"""
-        response = test_client.delete(self.RESOURCE_URL)
+        response = test_client.delete(self.RESOURCE_URL, headers={"User-Api-Key": JONI_MAISEMA_TOKEN})
         assert response.status_code == 204
 
-        response = test_client.get(self.RESOURCE_URL)
+        response = test_client.get(self.RESOURCE_URL, headers={"User-Api-Key": JONI_MAISEMA_TOKEN})
         assert response.status_code == 404
 
-        response = test_client.delete(self.INVALID_URL)
+        response = test_client.delete(self.INVALID_URL, headers={"User-Api-Key": JONI_MAISEMA_TOKEN})
         assert response.status_code == 404
 
 
@@ -280,7 +312,7 @@ class TestUserCollection:
 
     def test_get(self, test_client):
         """Tests For UserCollection GET"""
-        response = test_client.get(self.RESOURCE_URL)
+        response = test_client.get(self.RESOURCE_URL, headers={"EMS-Api-Key": ADMIN_API_TOKEN})
         assert response.status_code == 200
         data = response.get_json()
         assert data
@@ -304,11 +336,13 @@ class TestUserCollection:
         # Test valid
         response = test_client.post(self.RESOURCE_URL, json=json)
         assert response.status_code == 201
-        data = response.get_json()
-        assert data
-        assert data["name"] == "Test Post"
-        assert data["email"] == "TestPost@email.com"
-        assert data["phone_number"] == "1234567"
+        # data = response.get_json()
+        # assert data
+        # assert data["name"] == "Test Post"
+        # assert data["email"] == "TestPost@email.com"
+        # assert data["phone_number"] == "1234567"
+        data = response.headers
+        assert data["location"] == "/api/users/Test%20Post/"  # NOTE: %20 == " "
 
         # Testing missing field
         json.pop("email")
@@ -323,7 +357,7 @@ class TestUserEvents:
 
     def test_get(self, test_client):
         """Test for UserEvents Resource"""
-        response = test_client.get(self.RESOURCE_URL)
+        response = test_client.get(self.RESOURCE_URL, headers={"User-Api-Key": JONI_MAISEMA_TOKEN})
         assert response.status_code == 200
 
         data = response.get_json()
