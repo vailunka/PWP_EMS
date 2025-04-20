@@ -129,10 +129,10 @@ class Event(db.Model):
         serialized = {
             "name": self.name,
             "location": self.location,
-            "time": datetime.isoformat(self.time),
-            "organizer": self.organizer
+            "time": datetime.isoformat(self.time)
         }
         if not short_form:
+            serialized["organizer"] = self.organizer
             serialized["description"] = self.description
             serialized["category"] = self.category
             serialized["tags"] = self.tags
@@ -147,8 +147,8 @@ class Event(db.Model):
         self.name = serialized_data["name"]
         self.location = serialized_data["location"]
         self.time = datetime.fromisoformat(serialized_data["time"])
-        self.organizer = serialized_data["organizer"]
         # Optional parameters
+        self.organizer = serialized_data.get("organizer")
         self.description = serialized_data.get("description")
         self.category = serialized_data.get("category")
         self.tags = serialized_data.get("tags")
@@ -162,7 +162,7 @@ class Event(db.Model):
         """
         schema = {
             "type": "object",
-            "required": ["name", "location", "time", "organizer"]
+            "required": ["name", "location", "time"]
         }
         properties = schema["properties"] = {}
         properties["name"] = {"description": "Name of the event", "type": "string"}
@@ -175,11 +175,11 @@ class Event(db.Model):
             "type": "string",
             "format": "date-time"
         }
-        properties["organizer"] = {
-            "description": "ID of the user who is organizing the event",
-            "type": "integer",
-            "minimum": 0
-        }
+        # properties["organizer"] = {
+        #     "description": "ID of the user who is organizing the event",
+        #     "type": "integer",
+        #     "minimum": 0
+        # }
         return schema
 
 
@@ -390,81 +390,8 @@ class UserEvents(Resource):
         response.headers["Location"] = url
         return response
 
-    def _clear_cache(self):
-        collection_path = api.url_for(UserEvents)
-        cache.delete_many((collection_path, request.path))
-
-
-# Event-related resources
-class EventItem(Resource):
-    """
-    A flask-restful Resource that contains the GET, PUT and DELETE HTTP methods
-    for individual events.
-    """
-
-    @cache.cached()
-    def get(self, event):
-        """
-        Handles the GET HTTP method. Gets information about an individual event.
-
-        :returns Response: Response containing the event information
-        """
-        response = jsonify(event.serialize())
-        response.status_code = 200
-        return response
-
-    def put(self, event):
-        """
-        Handles the PUT HTTP method. PUTs/modifies an existing event.
-
-        :returns Response: Response containing the event information
-        """
-        contents = request.json
-        try:
-            validate(
-                instance=contents,
-                schema=Event.json_schema(),
-                format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER,
-            )
-        except ValidationError as ex:
-            raise BadRequest(description=str(ex))
-        event.deserialize(contents)
-        db.session.commit()
-        url = api.url_for(EventItem, event=event)
-        return Response(response=url, status=200)
-
-    def delete(self, event):
-        """
-        Handles the DELETE HTTP method. Deletes an event.
-
-        :returns Response: Response with status code 204
-        """
-        db.session.delete(event)
-        db.session.commit()
-        return Response(status=204)
-
-    def _clear_cache(self):
-        collection_path = api.url_for(EventItem)
-        cache.delete_many((collection_path, request.path))
-
-
-class EventCollection(Resource):
-    """
-    A flask-restful Resource that contains the GET and POST HTTP methods for all events.
-    """
-
-    @cache.cached()
-    def get(self):
-        """
-        Handles the GET HTTP method. Gets information about all the events.
-
-        :returns List: Returns a list of serialized events.
-        """
-        events = Event.query.all()
-        serialized_events = [event.serialize() for event in events]
-        return serialized_events
-
-    def post(self):
+    @require_user_key
+    def post(self, user):
         """
         Handles the POST HTTP method. Creates a new event based on given values in the POST request.
 
@@ -487,6 +414,7 @@ class EventCollection(Resource):
         current_time = datetime.now()
         if event_time < current_time:
             raise ValueError("Event's time cannot be in the past when creating it.")
+
         # Check if an event with the same name already exists
         # existing_event = Event.query.filter_by(name=contents["name"]).first()
         # if existing_event:
@@ -494,6 +422,8 @@ class EventCollection(Resource):
 
         e = Event()
         e.deserialize(contents)
+        # Request doesn't need to have the organizer value in it, handled here
+        e.organizer = user.id
         db.session.add(e)
         db.session.commit()
 
@@ -504,6 +434,96 @@ class EventCollection(Resource):
         # response.status_code = 201
         # response.headers["location"] = url
         return Response(status=201, headers={"location": url})
+
+    def _clear_cache(self):
+        collection_path = api.url_for(UserEvents)
+        cache.delete_many((collection_path, request.path))
+
+
+class UserEventItem(Resource):
+    """
+    A flask-restful Resource that contains PUT and DELETE options to modify events created by user.
+    Before authentication, EventItem handled this functionality. After authentication, it became clear
+    that a helper resource was required to make sure the correct user can modify the events that the user
+    has organized.
+    """
+
+    @require_user_key
+    def put(self, user, event):
+        """
+        Handles the PUT HTTP method. PUTs/modifies an existing event.
+
+        :returns Response: Response containing the event information
+        """
+        contents = request.json
+        try:
+            validate(
+                instance=contents,
+                schema=Event.json_schema(),
+                format_checker=jsonschema.validators.Draft7Validator.FORMAT_CHECKER,
+            )
+        except ValidationError as ex:
+            raise BadRequest(description=str(ex))
+        if contents["organizer"] != user.id:
+            raise ValueError(f"Organizer ID ({contents['organizer']}) doesn't match user id ({user.id})")
+        event.deserialize(contents)
+        db.session.commit()
+        url = api.url_for(EventItem, event=event)
+        return Response(response=url, status=200)
+
+    @require_user_key
+    def delete(self, user, event):
+        """
+        Handles the DELETE HTTP method. Deletes an event.
+
+        :returns Response: Response with status code 204
+        """
+        if event.organizer != user.id:
+            print(event.serialize(), "\n", user.serialize())
+            raise ValueError(f"Organizer ID ({event.organizer}) doesn't match user id ({user.id})")
+        db.session.delete(event)
+        db.session.commit()
+        return Response(status=204)
+
+
+# Event-related resources
+class EventItem(Resource):
+    """
+    A flask-restful Resource that contains the GET, PUT and DELETE HTTP methods
+    for individual events.
+    """
+
+    @cache.cached()
+    def get(self, event):
+        """
+        Handles the GET HTTP method. Gets information about an individual event.
+
+        :returns Response: Response containing the event information
+        """
+        response = jsonify(event.serialize())
+        response.status_code = 200
+        return response
+
+    def _clear_cache(self):
+        collection_path = api.url_for(EventItem)
+        cache.delete_many((collection_path, request.path))
+
+
+class EventCollection(Resource):
+    """
+    A flask-restful Resource that contains the GET and POST HTTP methods for all events.
+    """
+
+    @cache.cached()
+    def get(self):
+        """
+        Handles the GET HTTP method. Gets information about all the events.
+
+        :returns List: Returns a list of serialized events.
+        """
+        events = Event.query.all()
+        serialized_events = [event.serialize() for event in events]
+        return serialized_events
 
     def _clear_cache(self):
         collection_path = api.url_for(EventCollection)
@@ -550,6 +570,7 @@ app.url_map.converters["event"] = EventConverter
 api.add_resource(UserCollection, "/api/users/")
 api.add_resource(UserItem, "/api/users/<user:user>/")
 api.add_resource(UserEvents, "/api/users/<user:user>/events/")
+api.add_resource(UserEventItem, "/api/users/<user:user>/events/<event:event>/")
 api.add_resource(EventCollection, "/api/events/")
 api.add_resource(EventItem, "/api/events/<event:event>/")
 
