@@ -1,5 +1,6 @@
 import requests
 import keyring
+from datetime import datetime, timedelta
 
 
 class EMSClient:
@@ -8,6 +9,44 @@ class EMSClient:
         self.BASE_URL = base_url  # most likely http://127.0.0.1:5000/api/
         self.api_key = None
         self.current_user = None
+        self.admin_key = None
+
+    def load_admin_key(self):
+        """Load admin key from secure storage"""
+        self.set_admin_key()
+
+    def set_admin_key(self, key=None):
+        """
+        Set the admin API key
+        If no key provided, tries to load from keyring
+        """
+        if key is not None:
+            self.admin_key = key
+        else:
+            try:
+                self.admin_key = keyring.get_password("EMS_admin", "admin")
+                if not self.admin_key:
+                    raise ValueError("No admin key found in keyring")
+            except Exception as e:
+                raise ValueError(f"Failed to access keyring: {str(e)}")
+
+    def admin_request(self, method, endpoint, **kwargs):
+        """Make authenticated admin request"""
+        if not self.admin_key:
+            raise ValueError("Admin API key not available")
+
+        headers = kwargs.get('headers', {})
+        headers['EMS-Api-Key'] = self.admin_key
+        kwargs['headers'] = headers
+
+        url = f"{self.BASE_URL}{endpoint}"
+        response = requests.request(method, url, timeout=10, **kwargs)
+
+        if response.status_code == 403:
+            print("Invalid or expired admin API key")
+            self.admin_key = None
+
+        return response
 
     def authenticated_request(self, method, endpoint, **kwargs):
         """
@@ -16,11 +55,13 @@ class EMSClient:
         :param str method: HTTP method to be used (GET, PUT, POST, DELETE)
         :param str endpoint: Endpoint of the request (excluding the BASE_URL part)
         :param kwargs: Additional parameters
-        :return:
+        :returns obj: Response object
         """
         if not self.api_key:
             raise ValueError("API key not available")
-        if any(["GET", "PUT", "POST", "DELETE"]) not in method:
+
+        # Fixed the method validation
+        if method.upper() not in ["GET", "PUT", "POST", "DELETE"]:
             raise ValueError(f"{method} is not an implemented method, "
                              f"accepted values are GET, PUT, POST and DELETE")
 
@@ -57,7 +98,7 @@ class EMSClient:
         if response.status_code == 201:
             api_key = response.headers.get("User-Api-Key")
             if api_key:
-                # keyring.set_password("EMS_user", username, api_key)
+                #keyring.set_password("EMS_user", username, api_key)
                 self.api_key = api_key
                 self.current_user = username
                 print(f"User {username} created successfully.")
@@ -111,6 +152,7 @@ class EMSClient:
         response = self.authenticated_request("DELETE", endpoint=endpoint)
         if response.status_code == 204:
             print(f"User {self.current_user} was deleted successfully.")
+            self.current_user = None
             return True
         return False
 
@@ -130,9 +172,11 @@ class EMSClient:
             return response.json()
         return
 
-    # TODO --> admin-logiikka tätä varten
     def get_all_users(self):
-        pass
+        """Admin-only: Get list of all users"""
+        response = self.admin_request("GET", "users/")
+        print(f"response is: {response.json()}")
+        return response.json() if response.status_code == 200 else None
 
     def create_event(self, name, location, time, description, category=None, tags=None):
         """
@@ -152,13 +196,13 @@ class EMSClient:
 
         endpoint = f"users/{self.current_user}/events/"
 
-        event_details = {"name": name, "location": location, "time": time, "description": description}
+        event_details = {"name": name, "location": location, "time": time.isoformat(), "description": description}
         if category:
             event_details["category"] = category
         if tags:
             event_details["tags"] = tags
 
-        response = self.authenticated_request("POST", endpoint=endpoint)
+        response = self.authenticated_request("POST", endpoint=endpoint, json=event_details)
         if response.status_code == 201:
             print(f"Event created successfully.")
             return True
@@ -219,6 +263,7 @@ class EMSClient:
         endpoint = f"users/{self.current_user}/events/{name}/"
         response = self.authenticated_request("DELETE", endpoint=endpoint)
         if response.status_code == 204:
+            print("Event deleted successfully.")
             return True
         return False
 
@@ -233,3 +278,21 @@ class EMSClient:
         if response.status_code == 200:
             return response.json()
         return
+
+
+if __name__ == "__main__":
+    c = EMSClient("http://127.0.0.1:5000/api/")
+    #c2 = EMSClient("http://127.0.0.1:5000/api/")
+    #c3 = EMSClient("http://127.0.0.1:5000/api/")
+    c.load_admin_key()
+    print(f"current user: {c.current_user}")
+    c.create_user("aaa", "bbb", "ccc")
+    print(f"current user: {c.current_user}")
+    #c2.create_user("asdasd", "qwdasdas", "adssadasa")
+    print(f"current user: {c.current_user}")
+    c.get_all_users()
+    #c.get_all_users()
+    c.create_event("testi", "testi", datetime.now() + timedelta(hours=1), "testi", ["nope"], ["nops"])
+    c.create_event("testikakkonen", "testikakkonen", datetime.now() + timedelta(hours=5), "testikakkonen")
+    s_ek = c.get_event("testikakkonen")
+    c.delete_event("testikakkonen")
