@@ -3,6 +3,7 @@
 from datetime import datetime
 import hashlib
 import secrets
+import keyring
 import jsonschema.validators
 from jsonschema import validate, ValidationError
 from flask import Flask, request, Response, jsonify
@@ -314,6 +315,8 @@ class UserCollection(Resource):
         """
         users = User.query.all()
         serialized_users = [user.serialize() for user in users]
+        response = jsonify(serialized_users)
+        response.status_code = 200
         return serialized_users
 
     def post(self):
@@ -502,6 +505,8 @@ class EventItem(Resource):
         """
         response = jsonify(event.serialize())
         response.status_code = 200
+        response.headers["info"] = event.serialize()
+        response.headers["eventobj"] = event
         return response
 
     def _clear_cache(self):
@@ -523,7 +528,9 @@ class EventCollection(Resource):
         """
         events = Event.query.all()
         serialized_events = [event.serialize() for event in events]
-        return serialized_events
+        response = jsonify(serialized_events)
+        response.status_code = 200
+        return response
 
     def _clear_cache(self):
         collection_path = api.url_for(EventCollection)
@@ -578,4 +585,16 @@ if __name__ == "__main__":
     create_database()
     with app.app_context():
         db.create_all()
+
+        # Check if admin key already exists
+        existing_admin = ApiKey.query.filter_by(admin=True).first()
+        if not existing_admin:
+            admin_token = secrets.token_urlsafe()
+            admin_key_hash = ApiKey.key_hash(admin_token)
+            admin_key = ApiKey(key=admin_key_hash, admin=True)
+            db.session.add(admin_key)
+            db.session.commit()
+            # Store in keyring
+            keyring.set_password("EMS_admin", "admin", admin_token)
+
     app.run(debug=True)
