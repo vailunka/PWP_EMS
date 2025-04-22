@@ -12,7 +12,7 @@ class EMSClient:
         self.admin_key = None
 
     def load_admin_key(self):
-        """Load admin key from secure storage"""
+        """Load admin key from secure storage, acts as 'admin login' """
         self.set_admin_key()
 
     def set_admin_key(self, key=None):
@@ -129,6 +129,14 @@ class EMSClient:
             print("Logged in successfully")
             return True
 
+    def user_logout(self, username):
+        if not username:
+            print("Username was not given")
+            return False
+
+        self.current_user = None
+        self.api_key = None
+
     def get_user(self):
         """
         GETs all the information about the user.
@@ -176,6 +184,7 @@ class EMSClient:
         if response.status_code == 204:
             print(f"User {self.current_user} was deleted successfully.")
             self.current_user = None
+            self.api_key = None
             return True
         return False
 
