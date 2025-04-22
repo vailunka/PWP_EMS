@@ -98,13 +98,36 @@ class EMSClient:
         if response.status_code == 201:
             api_key = response.headers.get("User-Api-Key")
             if api_key:
-                #keyring.set_password("EMS_user", username, api_key)
+                keyring.set_password("EMS_user", username, api_key)
                 self.api_key = api_key
                 self.current_user = username
                 print(f"User {username} created successfully.")
                 return True
         print(f"Error in creating user: {response.status_code}, {response.text}")
         return False
+
+    def user_login(self, username):
+        """
+        Log in as user
+
+        :param str username: Name of the user
+        :return bool: True if login was successful, False otherwise
+        """
+        if not username:
+            print("Username was not given")
+            return False
+        user_key = keyring.get_password("EMS_user", username)
+        if not user_key:
+            print("User does not exist")
+            return False
+        if user_key == self.api_key and self.current_user == username:
+            print(f"Already logged in as {self.current_user}")
+            return False
+        else:
+            self.current_user = username
+            self.api_key = user_key
+            print("Logged in successfully")
+            return True
 
     def get_user(self):
         """
