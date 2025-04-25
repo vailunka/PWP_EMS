@@ -537,6 +537,47 @@ class EventCollection(Resource):
         cache.delete_many((collection_path, request.path))
 
 
+class EventParticipants(Resource):
+    """
+    A flask-restful Resource that handles adding/removing users as event participants
+    """
+
+    @require_user_key
+    def post(self, user, event):
+        """
+        Adds the user as a participant to the specified event
+        """
+        # Check if user is already participating
+        if user in event.users:
+            return Response(status=409)
+
+        event.users.append(user)
+        db.session.commit()
+
+        # Clear relevant caches
+        cache.delete(api.url_for(UserEvents, user=user))
+        cache.delete(api.url_for(EventItem, event=event))
+
+        return Response(status=201)
+
+    @require_user_key
+    def delete(self, user, event):
+        """
+        Removes the user from the specified event's participants
+        """
+        if user not in event.users:
+            raise NotFound("User is not participating in this event")
+
+        event.users.remove(user)
+        db.session.commit()
+
+        # Clear relevant caches
+        cache.delete(api.url_for(UserEvents, user=user))
+        cache.delete(api.url_for(EventItem, event=event))
+
+        return Response(status=204)
+
+
 # Converters
 class UserConverter(BaseConverter):
     """
@@ -580,6 +621,7 @@ api.add_resource(UserEvents, "/api/users/<user:user>/events/")
 api.add_resource(UserEventItem, "/api/users/<user:user>/events/<event:event>/")
 api.add_resource(EventCollection, "/api/events/")
 api.add_resource(EventItem, "/api/events/<event:event>/")
+api.add_resource(EventParticipants, "/api/events/<event:event>/participants/<user:user>/")
 
 if __name__ == "__main__":
     create_database()
