@@ -3,123 +3,195 @@ from tkinter import ttk, messagebox
 from datetime import datetime, timedelta
 from ems_client import EMSClient
 
-client = EMSClient("http://127.0.0.1:5000/api/")  # Update if your API runs elsewhere
+client = EMSClient("http://127.0.0.1:5000/api/")
+
+def parse_datetime_from_string(time_string):
+    """
+    Converts a string in 'YYYY-MM-DD HH:MM' format to a datetime object.
+
+    :param time_string: String representing date and time
+    :return: datetime object or None if invalid
+    """
+    try:
+        return datetime.strptime(time_string, "%Y-%m-%d %H:%M")
+    except ValueError:
+        return None
+
+class LoginFrame(ttk.Frame):
+    def __init__(self, master, switch_to_register, switch_to_dashboard):
+        super().__init__(master)
+        self.switch_to_dashboard = switch_to_dashboard
+
+        ttk.Label(self, text="Login", font=("Arial", 16)).grid(row=0, column=0, columnspan=2, pady=10)
+
+        ttk.Label(self, text="Username:").grid(row=1, column=0)
+        self.username_entry = ttk.Entry(self)
+        self.username_entry.grid(row=1, column=1)
+
+        ttk.Button(self, text="Login", command=self.login_user).grid(row=2, column=0, columnspan=2, pady=10)
+        ttk.Button(self, text="Register", command=switch_to_register).grid(row=3, column=0, columnspan=2)
+
+    def login_user(self):
+        username = self.username_entry.get()
+        if client.user_login(username):
+            messagebox.showinfo("Login", f"Welcome, {username}!")
+            self.switch_to_dashboard()
+        else:
+            messagebox.showerror("Login Failed", "Invalid username or not registered.")
+
+class RegisterFrame(ttk.Frame):
+    def __init__(self, master, switch_to_login):
+        super().__init__(master)
+        self.switch_to_login = switch_to_login
+
+        ttk.Label(self, text="Register", font=("Arial", 16)).grid(row=0, column=0, columnspan=2, pady=10)
+
+        self.entries = {}
+        for i, field in enumerate(["Name", "Email", "Phone"]):
+            ttk.Label(self, text=f"{field}:").grid(row=i+1, column=0)
+            entry = ttk.Entry(self)
+            entry.grid(row=i+1, column=1)
+            self.entries[field.lower()] = entry
+
+        ttk.Button(self, text="Create Account", command=self.register_user).grid(row=4, column=0, columnspan=2, pady=10)
+        ttk.Button(self, text="Back to Login", command=switch_to_login).grid(row=5, column=0, columnspan=2)
+
+    def register_user(self):
+        name = self.entries["name"].get()
+        email = self.entries["email"].get()
+        phone = self.entries["phone"].get()
+
+        if client.create_user(name, email, phone):
+            messagebox.showinfo("Registered", "Account created!")
+            self.switch_to_login()
+        else:
+            messagebox.showerror("Error", "Could not register.")
+
+class DashboardFrame(ttk.Frame):
+    def __init__(self, master, switch_to_login):
+        super().__init__(master)
+        self.switch_to_login = switch_to_login
+
+        ttk.Label(self, text="Welcome to Your Dashboard", font=("Arial", 14)).pack(pady=10)
+
+        ttk.Button(self, text="Create Event", command=self.create_event_popup).pack(pady=5)
+        ttk.Button(self, text="View My Events", command=self.show_events).pack(pady=5)
+        ttk.Button(self, text="Update Profile", command=self.update_profile_popup).pack(pady=5)
+        ttk.Button(self, text="Logout", command=self.logout).pack(pady=20)
+
+        self.output = tk.Text(self, width=60, height=15)
+        self.output.pack()
+
+    def logout(self):
+        client.user_logout(client.current_user)
+        self.switch_to_login()
+
+    def show_events(self):
+        events = client.get_user_events()
+        self.output.delete(1.0, tk.END)
+        if events:
+            self.output.insert(tk.END, f"User: {events['user_name']}\n\n")
+            for e in events["event_infos"]["organized_events"]:
+                self.output.insert(tk.END, f"Organized: {e['name']}\n")
+            for e in events["event_infos"]["attended_events"]:
+                self.output.insert(tk.END, f"Attended: {e['name']}\n")
+        else:
+            self.output.insert(tk.END, "No events found.")
+
+    def create_event_popup(self):
+        popup = tk.Toplevel(self)
+        popup.title("Create Event")
+
+        labels = ["Name", "Location", "Description", "Category", "Tags", "Time (YYYY-MM-DD HH:MM)"]
+        entries = {}
+
+        for i, lbl in enumerate(labels):
+            ttk.Label(popup, text=lbl).grid(row=i, column=0)
+            entry = ttk.Entry(popup)
+            entry.grid(row=i, column=1)
+            entries[lbl.lower()] = entry
+
+        def submit():
+            name = entries["name"].get()
+            location = entries["location"].get()
+            desc = entries["description"].get()
+            category = entries["category"].get().split(',')
+            tags = entries["tags"].get().split(',')
+            time_str = entries["time (yyyy-mm-dd hh:mm)"].get()
+            time = datetime.now() + timedelta(hours=5)
+            if not time:
+                messagebox.showerror("Invalid Time", "Please enter time in YYYY-MM-DD HH:MM format.")
+                return
+            print(client.current_user)
+            print(name)
+            print(location)
+            print(desc)
+            print(category)
+            print(tags)
+            print(time)
+
+            if client.create_event("testi", "testi", datetime.now() + timedelta(hours=1), "testi", ["nope"], ["nops"]):
+                messagebox.showinfo("Created", "Event created!")
+                popup.destroy()
+            else:
+                messagebox.showerror("Error", "Event creation failed.")
+
+        ttk.Button(popup, text="Create", command=submit).grid(row=6, columnspan=2, pady=10)
+
+    def update_profile_popup(self):
+        popup = tk.Toplevel(self)
+        popup.title("Update Profile")
+
+        fields = ["Name", "Email", "Phone"]
+        entries = {}
+
+        for i, field in enumerate(fields):
+            ttk.Label(popup, text=field).grid(row=i, column=0)
+            entry = ttk.Entry(popup)
+            entry.grid(row=i, column=1)
+            entries[field.lower()] = entry
+
+        def submit():
+            updated = {
+                "name": entries["name"].get(),
+                "email": entries["email"].get(),
+                "phone_number": entries["phone"].get()
+            }
+            if client.modify_user(updated):
+                messagebox.showinfo("Updated", "Profile updated!")
+                popup.destroy()
+            else:
+                messagebox.showerror("Error", "Update failed.")
+
+        ttk.Button(popup, text="Update", command=submit).grid(row=3, columnspan=2, pady=10)
 
 class EMSApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Event Management System")
+        self.root.title("EMS")
+        self.container = ttk.Frame(root)
+        self.container.pack(fill="both", expand=True)
+        self.current_frame = None
+        self.show_login()
 
-        self.notebook = ttk.Notebook(root)
-        self.notebook.pack(padx=10, pady=10, expand=True, fill='both')
+    def clear_frame(self):
+        if self.current_frame:
+            self.current_frame.destroy()
 
-        self.create_user_tab()
-        self.create_event_tab()
-        self.view_events_tab()
+    def show_login(self):
+        self.clear_frame()
+        self.current_frame = LoginFrame(self.container, self.show_register, self.show_dashboard)
+        self.current_frame.pack()
 
-    def create_user_tab(self):
-        user_tab = ttk.Frame(self.notebook)
-        self.notebook.add(user_tab, text="User")
+    def show_register(self):
+        self.clear_frame()
+        self.current_frame = RegisterFrame(self.container, self.show_login)
+        self.current_frame.pack()
 
-        ttk.Label(user_tab, text="Name").grid(row=0, column=0)
-        self.user_name = ttk.Entry(user_tab)
-        self.user_name.grid(row=0, column=1)
-
-        ttk.Label(user_tab, text="Email").grid(row=1, column=0)
-        self.user_email = ttk.Entry(user_tab)
-        self.user_email.grid(row=1, column=1)
-
-        ttk.Label(user_tab, text="Phone").grid(row=2, column=0)
-        self.user_phone = ttk.Entry(user_tab)
-        self.user_phone.grid(row=2, column=1)
-
-        create_btn = ttk.Button(user_tab, text="Create User", command=self.create_user)
-        create_btn.grid(row=3, columnspan=2, pady=10)
-
-    def create_event_tab(self):
-        event_tab = ttk.Frame(self.notebook)
-        self.notebook.add(event_tab, text="Create Event")
-
-        ttk.Label(event_tab, text="Event Name").grid(row=0, column=0)
-        self.event_name = ttk.Entry(event_tab)
-        self.event_name.grid(row=0, column=1)
-
-        ttk.Label(event_tab, text="Location").grid(row=1, column=0)
-        self.event_location = ttk.Entry(event_tab)
-        self.event_location.grid(row=1, column=1)
-
-        ttk.Label(event_tab, text="Description").grid(row=2, column=0)
-        self.event_desc = ttk.Entry(event_tab)
-        self.event_desc.grid(row=2, column=1)
-
-        ttk.Label(event_tab, text="Category (comma-separated)").grid(row=3, column=0)
-        self.event_category = ttk.Entry(event_tab)
-        self.event_category.grid(row=3, column=1)
-
-        ttk.Label(event_tab, text="Tags (comma-separated)").grid(row=4, column=0)
-        self.event_tags = ttk.Entry(event_tab)
-        self.event_tags.grid(row=4, column=1)
-
-        ttk.Button(event_tab, text="Create Event", command=self.create_event).grid(row=5, columnspan=2, pady=10)
-
-    def view_events_tab(self):
-        view_tab = ttk.Frame(self.notebook)
-        self.notebook.add(view_tab, text="My Events")
-
-        ttk.Button(view_tab, text="Load My Events", command=self.load_events).pack(pady=10)
-
-        self.events_output = tk.Text(view_tab, height=15, width=60)
-        self.events_output.pack()
-
-    def create_user(self):
-        name = self.user_name.get()
-        email = self.user_email.get()
-        phone = self.user_phone.get()
-
-        if not name or not email:
-            messagebox.showerror("Missing Fields", "Name and Email are required.")
-            return
-
-        if client.create_user(name, email, phone):
-            messagebox.showinfo("Success", f"User {name} created.")
-        else:
-            messagebox.showerror("Error", "Failed to create user.")
-
-    def create_event(self):
-        name = self.event_name.get()
-        location = self.event_location.get()
-        desc = self.event_desc.get()
-        category = self.event_category.get().split(",") if self.event_category.get() else []
-        tags = self.event_tags.get().split(",") if self.event_tags.get() else []
-
-        if not name or not location:
-            messagebox.showerror("Missing Fields", "Event name and location are required.")
-            return
-
-        time = datetime.now() + timedelta(hours=1)
-
-        if client.create_event(name, location, time, desc, category, tags):
-            messagebox.showinfo("Success", f"Event {name} created.")
-        else:
-            messagebox.showerror("Error", "Failed to create event.")
-
-    def load_events(self):
-        result = client.get_user_events()
-        if not result:
-            self.events_output.delete(1.0, tk.END)
-            self.events_output.insert(tk.END, "No user or events found.")
-            return
-
-        self.events_output.delete(1.0, tk.END)
-        self.events_output.insert(tk.END, f"User: {result['user_name']}\n\n")
-        self.events_output.insert(tk.END, "Organized Events:\n")
-        for e in result["event_infos"]["organized_events"]:
-            self.events_output.insert(tk.END, f"- {e['name']} at {e['location']}\n")
-
-        self.events_output.insert(tk.END, "\nAttended Events:\n")
-        for e in result["event_infos"]["attended_events"]:
-            self.events_output.insert(tk.END, f"- {e['name']} at {e['location']}\n")
-
+    def show_dashboard(self):
+        self.clear_frame()
+        self.current_frame = DashboardFrame(self.container, self.show_login)
+        self.current_frame.pack()
 
 if __name__ == "__main__":
     root = tk.Tk()
