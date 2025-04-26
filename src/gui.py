@@ -76,6 +76,8 @@ class DashboardFrame(ttk.Frame):
         ttk.Button(self, text="View My Events", command=self.show_events).pack(pady=5)
         ttk.Button(self, text="Update Profile", command=self.update_profile_popup).pack(pady=5)
         ttk.Button(self, text="Search Event", command=self.search_event_popup).pack(pady=5)
+        ttk.Button(self, text="Attend Event", command=self.attend_event_popup).pack(pady=5)
+        ttk.Button(self, text="Leave Event", command=self.leave_event_popup).pack(pady=5)
         ttk.Button(self, text="Logout", command=self.logout).pack(pady=20)
 
         self.output = tk.Text(self, width=60, height=15)
@@ -153,6 +155,42 @@ class DashboardFrame(ttk.Frame):
                 self.output.insert(tk.END, "No event found with that name.")
 
         ttk.Button(popup, text="Search", command=submit_search).grid(row=1, columnspan=2, pady=10)
+
+    def attend_event_popup(self):
+        popup = tk.Toplevel(self)
+        popup.title("Attend Event")
+
+        ttk.Label(popup, text="Event Name:").grid(row=0, column=0)
+        event_entry = ttk.Entry(popup)
+        event_entry.grid(row=0, column=1)
+
+        def submit_attend():
+            event_name = event_entry.get()
+            if client.add_user_as_participant(event_name):
+                messagebox.showinfo("Success", f"You are now attending {event_name}!")
+            else:
+                messagebox.showerror("Error", f"Could not attend {event_name}.")
+            popup.destroy()
+
+        ttk.Button(popup, text="Attend", command=submit_attend).grid(row=1, columnspan=2, pady=10)
+
+    def leave_event_popup(self):
+        popup = tk.Toplevel(self)
+        popup.title("Leave Event")
+
+        ttk.Label(popup, text="Event Name:").grid(row=0, column=0)
+        event_entry = ttk.Entry(popup)
+        event_entry.grid(row=0, column=1)
+
+        def submit_leave():
+            event_name = event_entry.get()
+            if client.remove_user_participation(event_name):
+                messagebox.showinfo("Success", f"You have left {event_name}.")
+            else:
+                messagebox.showerror("Error", f"Could not leave {event_name}.")
+            popup.destroy()
+
+        ttk.Button(popup, text="Leave", command=submit_leave).grid(row=1, columnspan=2, pady=10)
 
     def update_profile_popup(self):
         popup = tk.Toplevel(self)
