@@ -1,6 +1,7 @@
 import requests
 import keyring
 from datetime import datetime, timedelta
+import json
 
 
 class EMSClient:
@@ -311,6 +312,38 @@ class EMSClient:
             return response.json()
         return
 
+    def add_user_as_participant(self, event):
+        """
+        Adds user as participant to an event.
+
+        :param str event: Name of the event
+        :returns bool: True if adding user to participants was successful, False otherwise
+        """
+        endpoint = f"events/{event}/participants/{self.current_user}/"
+        if not self.current_user:
+            print("User is none - cannot make POST request. Please log in or create a user first")
+        response = self.authenticated_request("POST", endpoint=endpoint)
+        if response.status_code == 201:
+            print(f"User {self.current_user} added as participant to the event {event}.")
+            return True
+        return False
+
+    def remove_user_participation(self, event):
+        """
+        Removes user from event participants.
+
+        :param str event: Name of the event
+        :returns bool: True if deleting user from participants was successful, False otherwise
+        """
+        endpoint = f"events/{event}/participants/{self.current_user}/"
+        if not self.current_user:
+            print("User is none - cannot make POST request. Please log in or create a user first")
+        response = self.authenticated_request("DELETE", endpoint=endpoint)
+        if response.status_code == 204:
+            print(f"User {self.current_user} deleted from participants @ event: {event}.")
+            return True
+        return False
+
 
 if __name__ == "__main__":
     c = EMSClient("http://127.0.0.1:5000/api/")
@@ -327,4 +360,14 @@ if __name__ == "__main__":
     c.create_event("testi", "testi", datetime.now() + timedelta(hours=1), "testi", ["nope"], ["nops"])
     c.create_event("testikakkonen", "testikakkonen", datetime.now() + timedelta(hours=5), "testikakkonen")
     s_ek = c.get_event("testikakkonen")
+    ev = c.get_user_events()
+    print(json.dumps(ev))
+    c.create_user("moi", "hei", "terve")
+    c.add_user_as_participant("testi")
+    c.add_user_as_participant("testikakkonen")
+    ev = c.get_user_events()
+    print(json.dumps(ev))
+    c.remove_user_participation("testikakkonen")
+    ev = c.get_user_events()
+    print(json.dumps(ev))
     c.delete_event("testikakkonen")
