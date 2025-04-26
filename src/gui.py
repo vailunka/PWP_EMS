@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime, timedelta
-from ems_client import EMSClient
+from src.ems_client import EMSClient
 
 client = EMSClient("http://127.0.0.1:5000/api/")
 
@@ -57,11 +57,7 @@ class RegisterFrame(ttk.Frame):
         phone = self.entries["phone"].get()
 
         if client.create_user(name, email, phone):
-            messagebox.showinfo("Registered", "Account created!")
-            if client.user_login(name):
-                self.switch_to_dashboard()
-            else:
-                messagebox.showerror("Error", "Automatic login after registration failed.")
+            self.switch_to_dashboard()
         else:
             messagebox.showerror("Error", "Could not register.")
 
