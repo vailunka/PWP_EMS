@@ -6,12 +6,6 @@ from ems_client import EMSClient
 client = EMSClient("http://127.0.0.1:5000/api/")
 
 def parse_datetime_from_string(time_string):
-    """
-    Converts a string in 'YYYY-MM-DD HH:MM' format to a datetime object.
-
-    :param time_string: String representing date and time
-    :return: datetime object or None if invalid
-    """
     try:
         return datetime.strptime(time_string, "%Y-%m-%d %H:%M")
     except ValueError:
@@ -40,9 +34,10 @@ class LoginFrame(ttk.Frame):
             messagebox.showerror("Login Failed", "Invalid username or not registered.")
 
 class RegisterFrame(ttk.Frame):
-    def __init__(self, master, switch_to_login):
+    def __init__(self, master, switch_to_login, switch_to_dashboard):
         super().__init__(master)
         self.switch_to_login = switch_to_login
+        self.switch_to_dashboard = switch_to_dashboard
 
         ttk.Label(self, text="Register", font=("Arial", 16)).grid(row=0, column=0, columnspan=2, pady=10)
 
@@ -63,7 +58,10 @@ class RegisterFrame(ttk.Frame):
 
         if client.create_user(name, email, phone):
             messagebox.showinfo("Registered", "Account created!")
-            self.switch_to_login()
+            if client.user_login(name):
+                self.switch_to_dashboard()
+            else:
+                messagebox.showerror("Error", "Automatic login after registration failed.")
         else:
             messagebox.showerror("Error", "Could not register.")
 
@@ -77,6 +75,7 @@ class DashboardFrame(ttk.Frame):
         ttk.Button(self, text="Create Event", command=self.create_event_popup).pack(pady=5)
         ttk.Button(self, text="View My Events", command=self.show_events).pack(pady=5)
         ttk.Button(self, text="Update Profile", command=self.update_profile_popup).pack(pady=5)
+        ttk.Button(self, text="Search Event", command=self.search_event_popup).pack(pady=5)
         ttk.Button(self, text="Logout", command=self.logout).pack(pady=20)
 
         self.output = tk.Text(self, width=60, height=15)
@@ -118,25 +117,42 @@ class DashboardFrame(ttk.Frame):
             category = entries["category"].get().split(',')
             tags = entries["tags"].get().split(',')
             time_str = entries["time (yyyy-mm-dd hh:mm)"].get()
-            time = datetime.now() + timedelta(hours=5)
+            time = parse_datetime_from_string(time_str)
             if not time:
                 messagebox.showerror("Invalid Time", "Please enter time in YYYY-MM-DD HH:MM format.")
                 return
-            print(client.current_user)
-            print(name)
-            print(location)
-            print(desc)
-            print(category)
-            print(tags)
-            print(time)
 
-            if client.create_event("testi", "testi", datetime.now() + timedelta(hours=1), "testi", ["nope"], ["nops"]):
+            if client.create_event(name, location, time, desc, category, tags):
                 messagebox.showinfo("Created", "Event created!")
                 popup.destroy()
             else:
                 messagebox.showerror("Error", "Event creation failed.")
 
         ttk.Button(popup, text="Create", command=submit).grid(row=6, columnspan=2, pady=10)
+
+    def search_event_popup(self):
+        popup = tk.Toplevel(self)
+        popup.title("Search Event")
+
+        ttk.Label(popup, text="Event Name:").grid(row=0, column=0)
+        event_entry = ttk.Entry(popup)
+        event_entry.grid(row=0, column=1)
+
+        def submit_search():
+            event_name = event_entry.get()
+            event = client.get_event(event_name)
+            self.output.delete(1.0, tk.END)
+            popup.destroy()
+            if event:
+                self.output.insert(tk.END, f"Event Found:\n")
+                self.output.insert(tk.END, f"Name: {event['name']}\n")
+                self.output.insert(tk.END, f"Location: {event['location']}\n")
+                self.output.insert(tk.END, f"Time: {event['time']}\n")
+                self.output.insert(tk.END, f"Description: {event.get('description', 'No description')}\n")
+            else:
+                self.output.insert(tk.END, "No event found with that name.")
+
+        ttk.Button(popup, text="Search", command=submit_search).grid(row=1, columnspan=2, pady=10)
 
     def update_profile_popup(self):
         popup = tk.Toplevel(self)
@@ -185,7 +201,7 @@ class EMSApp:
 
     def show_register(self):
         self.clear_frame()
-        self.current_frame = RegisterFrame(self.container, self.show_login)
+        self.current_frame = RegisterFrame(self.container, self.show_login, self.show_dashboard)
         self.current_frame.pack()
 
     def show_dashboard(self):
