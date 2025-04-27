@@ -1,0 +1,136 @@
+---
+# Actual EMS App Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pwp-ems
+  labels:
+    app: pwp-ems
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pwp-ems
+  template:
+    metadata:
+      labels:
+        app: pwp-ems
+    spec:
+      containers:
+        - name: pwp-ems
+          image: "tomjoki/pwp-ems-image"
+          ports:
+          - containerPort: 8000
+          env:
+          - name: FLASK_ENV
+            value: "production"
+          - name: FLASK_APP
+            value: "resources_and_models.py"
+          - name: MYSQL_HOST
+            value: "mysql"
+          - name: MYSQL_USER
+            value: "unction"
+          - name: MYSQL_PASSWORD
+            value: "unction123"
+          - name: MYSQL_DATABASE
+            value: "events_db"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "250m"
+              memory: "512Mi"
+
+---
+# EMS App service
+apiVersion: v1
+kind: Service
+metadata:
+  name: pwp-ems-service
+spec:
+  type: NodePort
+  selector:
+    app: pwp-ems
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+      nodePort: 30001
+
+---
+# MySQL
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  labels:
+    app: mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "root"
+        - name: MYSQL_DATABASE
+          value: "events_db"
+        - name: MYSQL_USER
+          value: "unction"
+        - name: MYSQL_PASSWORD
+          value: "unction123"
+        volumeMounts:
+        - name: mysql-persistent-storage
+          mountPath: /var/lib/mysql
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "1"
+            memory: "2Gi"
+      volumes:
+      - name: mysql-persistent-storage
+        persistentVolumeClaim:
+          claimName: mysql-pv-claim
+
+---
+# MySQL PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pv-claim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 3Gi
+
+---
+# MySQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service
+spec:
+  selector:
+    app: mysql
+  ports:
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306
+  type: ClusterIP
+
+---
