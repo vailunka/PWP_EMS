@@ -29,9 +29,9 @@ spec:
           - name: MYSQL_HOST
             value: "mysql"
           - name: MYSQL_USER
-            value: "unction"
+            value: "DB_USER"
           - name: MYSQL_PASSWORD
-            value: "unction123"
+            value: "DB_PASSWORD"
           - name: MYSQL_DATABASE
             value: "events_db"
           resources:
@@ -83,13 +83,13 @@ spec:
         - containerPort: 3306
         env:
         - name: MYSQL_ROOT_PASSWORD
-          value: "root"
+          value: "ROOT_PASSWORD"
         - name: MYSQL_DATABASE
           value: "events_db"
         - name: MYSQL_USER
-          value: "unction"
+          value: "DB_USER"
         - name: MYSQL_PASSWORD
-          value: "unction123"
+          value: "DB_PASSWORD"
         volumeMounts:
         - name: mysql-persistent-storage
           mountPath: /var/lib/mysql
