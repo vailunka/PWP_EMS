@@ -505,8 +505,6 @@ class EventItem(Resource):
         """
         response = jsonify(event.serialize())
         response.status_code = 200
-        response.headers["info"] = event.serialize()
-        response.headers["eventobj"] = event
         return response
 
     def _clear_cache(self):
@@ -624,7 +622,7 @@ api.add_resource(EventItem, "/api/events/<event:event>/")
 api.add_resource(EventParticipants, "/api/events/<event:event>/participants/<user:user>/")
 
 if __name__ == "__main__":
-    create_database()
+    # create_database()
     with app.app_context():
         db.create_all()
 
