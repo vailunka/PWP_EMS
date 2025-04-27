@@ -55,18 +55,9 @@ To test the implementation with test coverage, simply run `coverage run -m pytes
 
 To see the test coverage report in the CLI, run `coverage report`. You can also generate a html report to see everything in more detail by running `coverage html`.
 
-### Running the documentation locally (Swagger server)
-Running the documentation requires a different virtual environment from the implementation. If you are in a virtual environment, you can deactivate it by giving the `deactivate` command in the CLI. After that (from the repository root) give the commands:
-```bash
-cd python-flask-server-generated
-python -m documentation_venv /path/to/venv
+### Running the documentation
 
-# Linux system: source <documentation_venv>/bin/activate
-# Windows system: `path\to\venv\Scripts\activate` or `path\to\venv\Scripts\activate.bat` or `path\to\venv\Scripts\Activate.ps1`
+Documentation is ran automatically when the server hosting the API is online. The documentation can be found from `http://localhost:5000/apidocs/`
 
-pip install -r requirements.txt
-```
-
-You have now installed everything needed to run the documentation. You can run the documentation simply by giving the command `python -m swagger_server` or `python3 -m swagger_server`.
-
-You can access the documentation at the address `http://localhost:8080/api/ui/`.
+### Running the GUI / Client
+The Graphical User Interface can be run by using the command: `python -m src.gui`. *The client itself can be found from* `src/ems_client.py`. 
