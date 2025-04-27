@@ -337,7 +337,7 @@ class EMSClient:
         """
         endpoint = f"events/{event}/participants/{self.current_user}/"
         if not self.current_user:
-            print("User is none - cannot make POST request. Please log in or create a user first")
+            print("User is none - cannot make DELETE request. Please log in or create a user first")
         response = self.authenticated_request("DELETE", endpoint=endpoint)
         if response.status_code == 204:
             print(f"User {self.current_user} deleted from participants @ event: {event}.")
