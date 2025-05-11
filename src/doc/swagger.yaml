@@ -1,40 +1,47 @@
 swagger: 2.0.0
 info:
   title: Event Management API
-  description: "An API for managing users, events and relationships between users\
-    \ and events."
+  description: "An API for managing users, events and relationships between users and events."
   version: 1.0.0
-servers:
-- url: http://localhost:5000/api
+host: localhost:5000
+basePath: /api
+schemes:
+  - http
 paths:
   /users/:
     get:
-      tags:
-      - UserCollection
+      tags: [UserCollection]
       summary: List all users
       operationId: users_get
       responses:
         "200":
           description: A list of users
-          content:
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/User"
+          examples:
             application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/User"
-                x-content-type: application/json
-      x-openapi-router-controller: swagger_server.controllers.user_collection_controller
+              - name: "John Doe"
+                email: "john@example.com"
+              - name: "Jane Smith"
+                email: "jane@example.com"
+        "500":
+          description: Internal Server Error
     post:
-      tags:
-      - UserCollection
+      tags: [UserCollection]
       summary: Create a new user
       operationId: users_post
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/User"
-        required: true
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: "#/definitions/User"
+          examples:
+            application/json:
+              name: "New User"
+              email: "new@example.com"
       responses:
         "201":
           description: User Created
@@ -42,338 +49,344 @@ paths:
           description: Bad Request
         "415":
           description: Unsupported Media Type
-      x-openapi-router-controller: swagger_server.controllers.user_collection_controller
+        "500":
+          description: Internal Server Error
+
   /users/{user}/:
     get:
-      tags:
-      - UserItem
+      tags: [UserItem]
       summary: Get a user by name
       operationId: users_user_get
       parameters:
-      - name: user
-        in: path
-        description: Username as path parameter
-        required: true
-        style: simple
-        explode: false
-        schema:
-          type: string
+        - $ref: "#/parameters/UserParam"
       responses:
         "200":
           description: A User Object
-          content:
+          schema:
+            $ref: "#/definitions/User"
+          examples:
             application/json:
-              schema:
-                $ref: "#/components/schemas/User"
+              name: "Existing User"
+              email: "existing@example.com"
+              phone_number: "555-1234"
         "404":
           description: User Not Found
-      x-openapi-router-controller: swagger_server.controllers.user_item_controller
+        "500":
+          description: Internal Server Error
     put:
-      tags:
-      - UserItem
+      tags: [UserItem]
       summary: Update a user
       operationId: users_user_put
       parameters:
-      - name: user
-        in: path
-        description: Username as path parameter
-        required: true
-        style: simple
-        explode: false
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/User"
-        required: true
+        - $ref: "#/parameters/UserParam"
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: "#/definitions/User"
+          examples:
+            application/json:
+              name: "Updated User"
+              email: "updated@example.com"
       responses:
         "201":
           description: User updated
         "400":
           description: Bad Request
         "404":
-          description: Invalid URL
+          description: User Not Found
         "415":
-          description: Wrong Content-Type
-      x-openapi-router-controller: swagger_server.controllers.user_item_controller
+          description: Unsupported Media Type
+        "500":
+          description: Internal Server Error
     delete:
-      tags:
-      - UserItem
+      tags: [UserItem]
       summary: Delete a user
       operationId: users_user_delete
       parameters:
-      - name: user
-        in: path
-        description: Username as path parameter
-        required: true
-        style: simple
-        explode: false
-        schema:
-          type: string
+        - $ref: "#/parameters/UserParam"
       responses:
         "204":
           description: User deleted
         "404":
           description: User Not Found
-      x-openapi-router-controller: swagger_server.controllers.user_item_controller
+        "500":
+          description: Internal Server Error
+
   /users/{user}/events/:
     get:
-      tags:
-      - UserEvents
+      tags: [UserEvents]
       summary: Get all events a user organized or attended
       operationId: users_user_events_get
       parameters:
-      - name: user
-        in: path
-        description: Username as path parameter
-        required: true
-        style: simple
-        explode: false
-        schema:
-          type: string
+        - $ref: "#/parameters/UserParam"
       responses:
         "200":
           description: List of user events
-          content:
+          schema:
+            $ref: "#/definitions/inline_response_200"
+          examples:
             application/json:
-              schema:
-                $ref: "#/components/schemas/inline_response_200"
-      x-openapi-router-controller: swagger_server.controllers.user_events_controller
+              user_name: "Event User"
+              event_infos:
+                organized_events:
+                  - name: "Tech Conference"
+                    location: "Convention Center"
+                    time: "2023-09-15T09:00:00Z"
+                    category: ["conference", "technology"]
+                    tags: ["tech", "innovation"]
+                attended_events:
+                  - name: "Music Festival"
+                    location: "Central Park"
+                    time: "2023-08-05T18:00:00Z"
+                    category: ["music", "entertainment"]
+                    tags: ["summer", "outdoor"]
+        "404":
+          description: User Not Found
+        "500":
+          description: Internal Server Error
+    post:
+      tags: [UserEvents]
+      summary: Create a new event
+      operationId: users_user_events_post
+      parameters:
+        - $ref: "#/parameters/UserParam"
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: "#/definitions/Event"
+          examples:
+            application/json:
+              name: "New Event"
+              location: "Event Venue"
+              time: "2023-10-01T12:00:00Z"
+              category: ["workshop", "education"]
+              tags: ["learning", "technology"]
+      responses:
+        "201":
+          description: Event created
+        "400":
+          description: Bad Request
+        "404":
+          description: User Not Found
+        "500":
+          description: Internal Server Error
+
   /events/:
     get:
-      tags:
-      - EventCollection
+      tags: [EventCollection]
       summary: List all events
       operationId: events_get
       responses:
         "200":
           description: A list of events
-          content:
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Event"
+          examples:
             application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Event"
-                x-content-type: application/json
-      x-openapi-router-controller: swagger_server.controllers.event_collection_controller
+              - name: "Tech Conference"
+                location: "Convention Center"
+                time: "2023-09-15T09:00:00Z"
+                category: ["conference", "technology"]
+                tags: ["tech", "innovation"]
+              - name: "Music Festival"
+                location: "Central Park"
+                time: "2023-08-05T18:00:00Z"
+                category: ["music", "entertainment"]
+                tags: ["summer", "outdoor"]
+        "500":
+          description: Internal Server Error
     post:
-      tags:
-      - EventCollection
+      tags: [EventCollection]
       summary: Create a new event
       operationId: events_post
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/Event"
-        required: true
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: "#/definitions/Event"
+          examples:
+            application/json:
+              name: "New Event"
+              location: "Event Venue"
+              time: "2023-10-01T12:00:00Z"
+              category: ["conference", "business"]
+              tags: ["networking", "professional"]
       responses:
         "201":
           description: Event created
-      x-openapi-router-controller: swagger_server.controllers.event_collection_controller
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+
   /events/{event}/:
     get:
-      tags:
-      - EventItem
+      tags: [EventItem]
       summary: Get an event by name
       operationId: events_event_get
       parameters:
-      - name: event
-        in: path
-        description: Event name as path parameter
-        required: true
-        style: simple
-        explode: false
-        schema:
-          type: string
+        - $ref: "#/parameters/EventParam"
       responses:
         "200":
           description: An event object
-          content:
+          schema:
+            $ref: "#/definitions/Event"
+          examples:
             application/json:
-              schema:
-                $ref: "#/components/schemas/Event"
-      x-openapi-router-controller: swagger_server.controllers.event_item_controller
+              name: "Sample Event"
+              location: "Event Venue"
+              time: "2023-10-01T12:00:00Z"
+              organizer: 1
+              category: ["workshop", "education"]
+              tags: ["learning", "technology"]
+        "404":
+          description: Event Not Found
+        "500":
+          description: Internal Server Error
     put:
-      tags:
-      - EventItem
+      tags: [EventItem]
       summary: Update an event
       operationId: events_event_put
       parameters:
-      - name: event
-        in: path
-        description: Event name as path parameter
-        required: true
-        style: simple
-        explode: false
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/Event"
-        required: true
+        - $ref: "#/parameters/EventParam"
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: "#/definitions/Event"
+          examples:
+            application/json:
+              name: "Updated Event"
+              location: "New Venue"
+              time: "2023-11-01T14:00:00Z"
+              category: ["conference", "technology"]
+              tags: ["tech", "innovation"]
       responses:
         "200":
           description: Event updated
-      x-openapi-router-controller: swagger_server.controllers.event_item_controller
+        "400":
+          description: Bad Request
+        "404":
+          description: Event Not Found
+        "500":
+          description: Internal Server Error
     delete:
-      tags:
-      - EventItem
+      tags: [EventItem]
       summary: Delete an event
       operationId: events_event_delete
       parameters:
-      - name: event
-        in: path
-        description: Event name as path parameter
-        required: true
-        style: simple
-        explode: false
-        schema:
-          type: string
+        - $ref: "#/parameters/EventParam"
       responses:
         "204":
           description: Event deleted
-      x-openapi-router-controller: swagger_server.controllers.event_item_controller
-components:
-  schemas:
-    User:
-      required:
-      - email
-      - name
-      type: object
-      properties:
-        name:
-          type: string
-        email:
-          type: string
-        phone_number:
-          type: string
-      example:
-        name: name
-        phone_number: phone_number
-        email: email
-    Event:
-      required:
-      - location
-      - name
-      - organizer
-      - time
-      type: object
-      properties:
-        name:
-          type: string
-        location:
-          type: string
-        time:
-          type: string
-          format: date-time
-        organizer:
-          type: integer
-        description:
-          type: string
-        category:
-          type: object
-        tags:
-          type: array
-          items:
-            type: string
-      example:
-        organizer: 0
-        name: name
-        description: description
-        location: location
-        time: 2000-01-23T04:56:07.000+00:00
-        category: {}
-        tags:
-        - tags
-        - tags
-    inline_response_200:
-      type: object
-      properties:
-        user_name:
-          type: string
-        event_infos:
-          $ref: "#/components/schemas/inline_response_200_event_infos"
-      example:
-        event_infos:
-          organized_events:
-          - null
-          - null
-          attended_events:
-          - organizer: 0
-            name: name
-            description: description
-            location: location
-            time: 2000-01-23T04:56:07.000+00:00
-            category: {}
-            tags:
-            - tags
-            - tags
-          - organizer: 0
-            name: name
-            description: description
-            location: location
-            time: 2000-01-23T04:56:07.000+00:00
-            category: {}
-            tags:
-            - tags
-            - tags
-        user_name: user_name
-    inline_response_200_event_infos:
-      type: object
-      properties:
-        attended_events:
-          type: array
-          items:
-            $ref: "#/components/schemas/Event"
-        organized_events:
-          type: array
-          items:
-            $ref: "#/components/schemas/Event"
-      example:
-        organized_events:
-        - null
-        - null
-        attended_events:
-        - organizer: 0
-          name: name
-          description: description
-          location: location
-          time: 2000-01-23T04:56:07.000+00:00
-          category: {}
-          tags:
-          - tags
-          - tags
-        - organizer: 0
-          name: name
-          description: description
-          location: location
-          time: 2000-01-23T04:56:07.000+00:00
-          category: {}
-          tags:
-          - tags
-          - tags
-  parameters:
-    UserParam:
-      name: user
-      in: path
-      description: Username as path parameter
-      required: true
-      style: simple
-      explode: false
-      schema:
+        "404":
+          description: Event Not Found
+        "500":
+          description: Internal Server Error
+
+  /events/{event}/participants/{user}/:
+    post:
+      tags: [EventParticipants]
+      summary: Add user to event participants
+      operationId: events_event_participants_post
+      parameters:
+        - $ref: "#/parameters/EventParam"
+        - $ref: "#/parameters/UserParam"
+      responses:
+        "201":
+          description: User added to participants
+        "404":
+          description: User or Event Not Found
+        "409":
+          description: User already participating
+        "500":
+          description: Internal Server Error
+    delete:
+      tags: [EventParticipants]
+      summary: Remove user from event participants
+      operationId: events_event_participants_delete
+      parameters:
+        - $ref: "#/parameters/EventParam"
+        - $ref: "#/parameters/UserParam"
+      responses:
+        "204":
+          description: User removed from participants
+        "404":
+          description: User or Event Not Found
+        "500":
+          description: Internal Server Error
+
+definitions:
+  User:
+    type: object
+    required: [name, email]
+    properties:
+      name:
         type: string
-    EventParam:
-      name: event
-      in: path
-      description: Event name as path parameter
-      required: true
-      style: simple
-      explode: false
-      schema:
+      email:
+        type: string
+      phone_number:
         type: string
 
+  Event:
+    type: object
+    required: [name, location, time]
+    properties:
+      name:
+        type: string
+      location:
+        type: string
+      time:
+        type: string
+        format: date-time
+      organizer:
+        type: integer
+      description:
+        type: string
+      category:
+        type: array
+        items:
+          type: string
+      tags:
+        type: array
+        items:
+          type: string
+
+  inline_response_200:
+    type: object
+    properties:
+      user_name:
+        type: string
+      event_infos:
+        $ref: "#/definitions/inline_response_200_event_infos"
+
+  inline_response_200_event_infos:
+    type: object
+    properties:
+      attended_events:
+        type: array
+        items:
+          $ref: "#/definitions/Event"
+      organized_events:
+        type: array
+        items:
+          $ref: "#/definitions/Event"
+
+parameters:
+  UserParam:
+    name: user
+    in: path
+    description: Username as path parameter
+    required: true
+    type: string
+  EventParam:
+    name: event
+    in: path
+    description: Event name as path parameter
+    required: true
+    type: string
