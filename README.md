@@ -18,6 +18,8 @@
     - **NOTE: The folder also contains a `requirements.txt` file, meaning that you need to create a new virtual environment to run the documentation because of conflicting versions in the requirements.**
 - **Dump20250209**:
     - Contains SQL dumps of the database
+- **deployment**:
+    - Contains the YAML file used in the deployment and the README for setting up the deployment.
 - **repository root**:
     - Contains all the "extra" stuff such as this README, example output of populating the database etc.
     - Contains the `requirements.txt` file to run and test the API
