@@ -1,12 +1,17 @@
-import requests
-import keyring
+"""Client utils for testing API"""
+
 from datetime import datetime, timedelta
 import json
+import requests
+import keyring
+
 
 
 class EMSClient:
+    """Main Class"""
 
     def __init__(self, base_url):
+        """"Init"""
         self.BASE_URL = base_url  # most likely http://127.0.0.1:5000/api/
         self.api_key = None
         self.current_user = None
@@ -250,8 +255,8 @@ class EMSClient:
             print("User is none - cannot make POST request. Please log in or create a user first")
 
         endpoint = f"users/{self.current_user}/events/"
-
-        event_details = {"name": name, "location": location, "time": time.isoformat(), "description": description}
+        event_details = {"name": name, "location": location, "time": time.isoformat(),\
+        "description": description}
         if category:
             event_details["category"] = category
         if tags:
@@ -296,7 +301,8 @@ class EMSClient:
 
         endpoint = f"users/{self.current_user}/events/{name}/"
 
-        event_details = {"name": name, "location": location, "time": time, "description": description}
+        event_details = {"name": name, "location": location, "time": time, \
+            "description": description}
         if category:
             event_details["category"] = category
         if tags:
@@ -379,8 +385,10 @@ if __name__ == "__main__":
     print(f"current user: {c.current_user}")
     c.get_all_users()
     #c.get_all_users()
-    c.create_event("testi", "testi", datetime.now() + timedelta(hours=1), "testi", ["nope"], ["nops"])
-    c.create_event("testikakkonen", "testikakkonen", datetime.now() + timedelta(hours=5), "testikakkonen")
+    c.create_event("testi", "testi", datetime.now() + timedelta(hours=1),\
+         "testi", ["nope"], ["nops"])
+    c.create_event("testikakkonen", "testikakkonen", datetime.now() + timedelta(hours=5),\
+        "testikakkonen")
     s_ek = c.get_event("testikakkonen")
     ev = c.get_user_events()
     print(json.dumps(ev))

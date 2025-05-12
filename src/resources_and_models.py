@@ -13,9 +13,11 @@ from flask_caching import Cache
 from werkzeug.routing import BaseConverter
 from werkzeug.exceptions import NotFound, BadRequest, Forbidden
 import mysql.connector
-import config as cfg
 from flasgger import Swagger
 import pymysql
+import config as cfg
+
+
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -51,6 +53,7 @@ def create_database():
 
 
 def require_admin(func):
+    """Function make sure user is admin"""
     def wrapper(*args, **kwargs):
         key_header = request.headers.get("EMS-Api-Key")
         if not key_header:
@@ -68,6 +71,7 @@ def require_admin(func):
 
 
 def require_user_key(func):
+    """Function for requiring key"""
     def wrapper(self, user, *args, **kwargs):
         key_header = request.headers.get("User-Api-Key")
         if not key_header:
@@ -92,6 +96,7 @@ event_participants = db.Table(
 
 
 class ApiKey(db.Model):
+    """Apikey class"""
     key = db.Column(db.BINARY(32), primary_key=True, nullable=False, unique=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     admin = db.Column(db.Boolean, default=False)
@@ -100,6 +105,7 @@ class ApiKey(db.Model):
 
     @staticmethod
     def key_hash(key):
+        """Key Hash"""
         return hashlib.sha256(key.encode()).digest()
 
 
@@ -446,9 +452,9 @@ class UserEvents(Resource):
 class UserEventItem(Resource):
     """
     A flask-restful Resource that contains PUT and DELETE options to modify events created by user.
-    Before authentication, EventItem handled this functionality. After authentication, it became clear
-    that a helper resource was required to make sure the correct user can modify the events that the user
-    has organized.
+    Before authentication, EventItem handled this functionality. After authentication, 
+    it became clear that a helper resource was required to make sure the correct 
+    user can modify the events that the user has organized.
     """
 
     @require_user_key
@@ -468,7 +474,8 @@ class UserEventItem(Resource):
         except ValidationError as ex:
             raise BadRequest(description=str(ex))
         if contents["organizer"] != user.id:
-            raise ValueError(f"Organizer ID ({contents['organizer']}) doesn't match user id ({user.id})")
+            raise ValueError(f"Organizer ID \
+            ({contents['organizer']}) doesn't match user id ({user.id})")
         event.deserialize(contents)
         db.session.commit()
         url = api.url_for(EventItem, event=event)
