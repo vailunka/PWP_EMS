@@ -59,7 +59,7 @@ To see the test coverage report in the CLI, run `coverage report`. You can also 
 
 ### Running the documentation
 
-Documentation is ran automatically when the server hosting the API is online. The documentation can be found from `http://localhost:5000/apidocs/`
+Documentation is ran automatically when the server hosting the API is online. The documentation can be found from `http://app-route-unction-pwp-deployment.2.rahtiapp.fi/apidocs/`
 
 ### Running the GUI / Client
 The Graphical User Interface can be run by using the command: `python -m src.gui`. *The client itself can be found from* `src/ems_client.py`. 
