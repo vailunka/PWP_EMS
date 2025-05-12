@@ -163,13 +163,27 @@ class EMSClient:
         """
         if not self.current_user:
             print("User is none - cannot make PUT request. Please log in or create a user first")
+            return False
+
         endpoint = f"users/{self.current_user}/"
         response = self.authenticated_request("PUT", endpoint=endpoint, json=modified_contents)
+
         if response.status_code == 201:
-            print(f"User {modified_contents['name']} modified successfully.")
-            self.current_user = modified_contents['name']
+            old_username = self.current_user
+            new_username = modified_contents['name']
+
+            if old_username != new_username:
+                api_key = keyring.get_password("EMS_user", old_username)
+                if api_key:
+                    keyring.set_password("EMS_user", new_username, api_key)
+                    keyring.delete_password("EMS_user", old_username)
+
+            self.current_user = new_username
+            print(f"User {new_username} modified successfully.")
             return True
+
         return False
+
 
     def delete_user(self):
         """
@@ -177,16 +191,24 @@ class EMSClient:
 
         :returns bool: True if deletion was successful, False otherwise
         """
-
         if not self.current_user:
             print("User is none - cannot make DELETE request. Please log in or create a user first")
+            return False
+
         endpoint = f"users/{self.current_user}/"
         response = self.authenticated_request("DELETE", endpoint=endpoint)
         if response.status_code == 204:
             print(f"User {self.current_user} was deleted successfully.")
+
+            try:
+                keyring.delete_password("EMS_user", self.current_user)
+            except keyring.errors.PasswordDeleteError:
+                print("Keyring entry not found or already deleted.")
+
             self.current_user = None
             self.api_key = None
             return True
+
         return False
 
     def get_user_events(self):

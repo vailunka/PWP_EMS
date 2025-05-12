@@ -243,7 +243,7 @@ class UserItem(Resource):
     A flask-restful Resource that contains GET, PUT and DELETE HTTP methods for an individual user.
     """
 
-    @cache.cached()
+    #@cache.cached(forced_update=True)
     @require_user_key
     def get(self, user):
         """
@@ -305,7 +305,7 @@ class UserCollection(Resource):
     A flask-restful Resource that contains GET and POST HTTP methods for all the users.
     """
 
-    @cache.cached()
+    #@cache.cached(forced_update=True)
     @require_admin
     def get(self):
         """
@@ -362,7 +362,7 @@ class UserEvents(Resource):
     or organized.
     """
 
-    @cache.cached()
+    #@cache.cached(forced_update=True)
     @require_user_key
     def get(self, user):
         """
@@ -496,7 +496,7 @@ class EventItem(Resource):
     for individual events.
     """
 
-    @cache.cached()
+    #@cache.cached(forced_update=True)
     def get(self, event):
         """
         Handles the GET HTTP method. Gets information about an individual event.
@@ -517,7 +517,7 @@ class EventCollection(Resource):
     A flask-restful Resource that contains the GET and POST HTTP methods for all events.
     """
 
-    @cache.cached()
+    #@cache.cached()
     def get(self):
         """
         Handles the GET HTTP method. Gets information about all the events.
@@ -552,7 +552,10 @@ class EventParticipants(Resource):
         event.users.append(user)
         db.session.commit()
 
-        # Clear relevant caches
+        print("Clearing cache for user and event")
+        print("UserEvents:", api.url_for(UserEvents, user=user))
+        print("EventItem:", api.url_for(EventItem, event=event))
+
         cache.delete(api.url_for(UserEvents, user=user))
         cache.delete(api.url_for(EventItem, event=event))
 
@@ -569,7 +572,10 @@ class EventParticipants(Resource):
         event.users.remove(user)
         db.session.commit()
 
-        # Clear relevant caches
+        print("Clearing cache for user and event")
+        print("UserEvents:", api.url_for(UserEvents, user=user))
+        print("EventItem:", api.url_for(EventItem, event=event))
+
         cache.delete(api.url_for(UserEvents, user=user))
         cache.delete(api.url_for(EventItem, event=event))
 

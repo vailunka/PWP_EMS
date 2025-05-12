@@ -1,7 +1,9 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from datetime import datetime, timedelta
+from datetime import datetime
 from src.ems_client import EMSClient
+
+#client = EMSClient("http://test-route-unction-pwp-deployment.2.rahtiapp.fi/api/")
 
 client = EMSClient("http://127.0.0.1:5000/api/")
 
@@ -68,12 +70,9 @@ class DashboardFrame(ttk.Frame):
 
         ttk.Label(self, text="Welcome to Your Dashboard", font=("Arial", 14)).pack(pady=10)
 
-        ttk.Button(self, text="Create Event", command=self.create_event_popup).pack(pady=5)
-        ttk.Button(self, text="View My Events", command=self.show_events).pack(pady=5)
-        ttk.Button(self, text="Update Profile", command=self.update_profile_popup).pack(pady=5)
-        ttk.Button(self, text="Search Event", command=self.search_event_popup).pack(pady=5)
-        ttk.Button(self, text="Attend Event", command=self.attend_event_popup).pack(pady=5)
-        ttk.Button(self, text="Leave Event", command=self.leave_event_popup).pack(pady=5)
+        ttk.Button(self, text="Manage Events", command=self.manage_events_popup).pack(pady=5)
+        ttk.Button(self, text="Manage Profile", command=self.manage_profile_popup).pack(pady=5)
+        ttk.Button(self, text="View All Events", command=self.show_all_events).pack(pady=5)
         ttk.Button(self, text="Logout", command=self.logout).pack(pady=20)
 
         self.output = tk.Text(self, width=60, height=15)
@@ -83,114 +82,24 @@ class DashboardFrame(ttk.Frame):
         client.user_logout(client.current_user)
         self.switch_to_login()
 
-    def show_events(self):
-        events = client.get_user_events()
+    def show_all_events(self):
+        events = client.get_events()
         self.output.delete(1.0, tk.END)
         if events:
-            self.output.insert(tk.END, f"User: {events['user_name']}\n\n")
-            for e in events["event_infos"]["organized_events"]:
-                self.output.insert(tk.END, f"Organized: {e['name']}\n")
-            for e in events["event_infos"]["attended_events"]:
-                self.output.insert(tk.END, f"Attended: {e['name']}\n")
+            for e in events:
+                self.output.insert(tk.END, f"{e['name']} at {e['location']} on {e['time']}\n")
         else:
             self.output.insert(tk.END, "No events found.")
 
-    def create_event_popup(self):
+    def manage_profile_popup(self):
         popup = tk.Toplevel(self)
-        popup.title("Create Event")
+        popup.title("Manage Profile")
 
-        labels = ["Name", "Location", "Description", "Category", "Tags", "Time (YYYY-MM-DD HH:MM)"]
-        entries = {}
-
-        for i, lbl in enumerate(labels):
-            ttk.Label(popup, text=lbl).grid(row=i, column=0)
-            entry = ttk.Entry(popup)
-            entry.grid(row=i, column=1)
-            entries[lbl.lower()] = entry
-
-        def submit():
-            name = entries["name"].get()
-            location = entries["location"].get()
-            desc = entries["description"].get()
-            category = entries["category"].get().split(',')
-            tags = entries["tags"].get().split(',')
-            time_str = entries["time (yyyy-mm-dd hh:mm)"].get()
-            time = parse_datetime_from_string(time_str)
-            if not time:
-                messagebox.showerror("Invalid Time", "Please enter time in YYYY-MM-DD HH:MM format.")
-                return
-
-            if client.create_event(name, location, time, desc, category, tags):
-                messagebox.showinfo("Created", "Event created!")
-                popup.destroy()
-            else:
-                messagebox.showerror("Error", "Event creation failed.")
-
-        ttk.Button(popup, text="Create", command=submit).grid(row=6, columnspan=2, pady=10)
-
-    def search_event_popup(self):
-        popup = tk.Toplevel(self)
-        popup.title("Search Event")
-
-        ttk.Label(popup, text="Event Name:").grid(row=0, column=0)
-        event_entry = ttk.Entry(popup)
-        event_entry.grid(row=0, column=1)
-
-        def submit_search():
-            event_name = event_entry.get()
-            event = client.get_event(event_name)
-            self.output.delete(1.0, tk.END)
+        profile = client.get_user()
+        if not profile:
+            messagebox.showerror("Error", "Could not load profile.")
             popup.destroy()
-            if event:
-                self.output.insert(tk.END, f"Event Found:\n")
-                self.output.insert(tk.END, f"Name: {event['name']}\n")
-                self.output.insert(tk.END, f"Location: {event['location']}\n")
-                self.output.insert(tk.END, f"Time: {event['time']}\n")
-                self.output.insert(tk.END, f"Description: {event.get('description', 'No description')}\n")
-            else:
-                self.output.insert(tk.END, "No event found with that name.")
-
-        ttk.Button(popup, text="Search", command=submit_search).grid(row=1, columnspan=2, pady=10)
-
-    def attend_event_popup(self):
-        popup = tk.Toplevel(self)
-        popup.title("Attend Event")
-
-        ttk.Label(popup, text="Event Name:").grid(row=0, column=0)
-        event_entry = ttk.Entry(popup)
-        event_entry.grid(row=0, column=1)
-
-        def submit_attend():
-            event_name = event_entry.get()
-            if client.add_user_as_participant(event_name):
-                messagebox.showinfo("Success", f"You are now attending {event_name}!")
-            else:
-                messagebox.showerror("Error", f"Could not attend {event_name}.")
-            popup.destroy()
-
-        ttk.Button(popup, text="Attend", command=submit_attend).grid(row=1, columnspan=2, pady=10)
-
-    def leave_event_popup(self):
-        popup = tk.Toplevel(self)
-        popup.title("Leave Event")
-
-        ttk.Label(popup, text="Event Name:").grid(row=0, column=0)
-        event_entry = ttk.Entry(popup)
-        event_entry.grid(row=0, column=1)
-
-        def submit_leave():
-            event_name = event_entry.get()
-            if client.remove_user_participation(event_name):
-                messagebox.showinfo("Success", f"You have left {event_name}.")
-            else:
-                messagebox.showerror("Error", f"Could not leave {event_name}.")
-            popup.destroy()
-
-        ttk.Button(popup, text="Leave", command=submit_leave).grid(row=1, columnspan=2, pady=10)
-
-    def update_profile_popup(self):
-        popup = tk.Toplevel(self)
-        popup.title("Update Profile")
+            return
 
         fields = ["Name", "Email", "Phone"]
         entries = {}
@@ -199,9 +108,11 @@ class DashboardFrame(ttk.Frame):
             ttk.Label(popup, text=field).grid(row=i, column=0)
             entry = ttk.Entry(popup)
             entry.grid(row=i, column=1)
+            value = profile.get(field.lower()) if field.lower() != "phone" else profile.get("phone_number", "")
+            entry.insert(0, value or "")
             entries[field.lower()] = entry
 
-        def submit():
+        def update_profile():
             updated = {
                 "name": entries["name"].get(),
                 "email": entries["email"].get(),
@@ -211,9 +122,127 @@ class DashboardFrame(ttk.Frame):
                 messagebox.showinfo("Updated", "Profile updated!")
                 popup.destroy()
             else:
-                messagebox.showerror("Error", "Update failed.")
+                messagebox.showerror("Error", "Profile update failed.")
 
-        ttk.Button(popup, text="Update", command=submit).grid(row=3, columnspan=2, pady=10)
+        def delete_account():
+            confirm = messagebox.askyesno("Confirm", "Are you sure you want to delete your account? This cannot be undone.")
+            if confirm:
+                if client.delete_user():
+                    messagebox.showinfo("Deleted", "Your account was deleted.")
+                    self.switch_to_login()
+                    popup.destroy()
+                else:
+                    messagebox.showerror("Error", "Account deletion failed.")
+
+        ttk.Button(popup, text="Update Profile", command=update_profile).grid(row=3, column=0, pady=10)
+        ttk.Button(popup, text="Delete Account", command=delete_account).grid(row=3, column=1, pady=10)
+
+    def manage_events_popup(self):
+        popup = tk.Toplevel(self)
+        popup.title("Manage Events")
+
+        output = tk.Text(popup, width=70, height=15)
+        output.grid(row=0, column=0, columnspan=3, padx=10, pady=10)
+
+        def refresh_events():
+            print("event refresh")
+            output.delete(1.0, tk.END)
+            events = client.get_user_events()
+            if events:
+                output.insert(tk.END, f"User: {events['user_name']}\n\n")
+                output.insert(tk.END, "Organized Events:\n")
+                for e in events["event_infos"]["organized_events"]:
+                    output.insert(tk.END, f"  - {e['name']}\n")
+                output.insert(tk.END, "\nAttended Events:\n")
+                for e in events["event_infos"]["attended_events"]:
+                    output.insert(tk.END, f"  - {e['name']}\n")
+            else:
+                output.insert(tk.END, "No events found.")
+
+        refresh_events()
+
+        def make_popup(title, action_func):
+            sub = tk.Toplevel(popup)
+            sub.title(title)
+            ttk.Label(sub, text="Event Name:").grid(row=0, column=0)
+            entry = ttk.Entry(sub)
+            entry.grid(row=0, column=1)
+
+            def submit():
+                event_name = entry.get()
+                if action_func(event_name):
+                    messagebox.showinfo("Success", f"{title} successful!")
+                    refresh_events()
+                    sub.destroy()
+                else:
+                    messagebox.showerror("Error", f"{title} failed.")
+                    sub.destroy()
+
+            ttk.Button(sub, text=title, command=submit).grid(row=1, columnspan=2, pady=10)
+
+        def create_event():
+            sub = tk.Toplevel(popup)
+            sub.title("Create Event")
+
+            labels = ["Name", "Location", "Description", "Category", "Tags", "Time (YYYY-MM-DD HH:MM)"]
+            entries = {}
+
+            for i, lbl in enumerate(labels):
+                ttk.Label(sub, text=lbl).grid(row=i, column=0)
+                entry = ttk.Entry(sub)
+                entry.grid(row=i, column=1)
+                entries[lbl.lower()] = entry
+
+            def submit():
+                name = entries["name"].get()
+                location = entries["location"].get()
+                desc = entries["description"].get()
+                category = entries["category"].get().split(',')
+                tags = entries["tags"].get().split(',')
+                time_str = entries["time (yyyy-mm-dd hh:mm)"].get()
+                time = parse_datetime_from_string(time_str)
+                if not time:
+                    messagebox.showerror("Invalid Time", "Please enter time in YYYY-MM-DD HH:MM format.")
+                    return
+
+                if client.create_event(name, location, time, desc, category, tags):
+                    messagebox.showinfo("Created", "Event created!")
+                    sub.destroy()
+                    print("Event created, refreshing event list.")
+                    refresh_events()
+                else:
+                    messagebox.showerror("Error", "Event creation failed.")
+
+            ttk.Button(sub, text="Create", command=submit).grid(row=6, columnspan=2, pady=10)
+
+        def search_event():
+            sub = tk.Toplevel(popup)
+            sub.title("Search Event")
+            ttk.Label(sub, text="Event Name:").grid(row=0, column=0)
+            entry = ttk.Entry(sub)
+            entry.grid(row=0, column=1)
+
+            def submit():
+                event_name = entry.get()
+                event = client.get_event(event_name)
+                sub.destroy()
+                output.delete(1.0, tk.END)
+                if event:
+                    output.insert(tk.END, f"Event Found:\n")
+                    output.insert(tk.END, f"Name: {event['name']}\n")
+                    output.insert(tk.END, f"Location: {event['location']}\n")
+                    output.insert(tk.END, f"Time: {event['time']}\n")
+                    output.insert(tk.END, f"Description: {event.get('description', 'No description')}\n")
+                else:
+                    output.insert(tk.END, "No event found with that name.")
+
+            ttk.Button(sub, text="Search", command=submit).grid(row=1, columnspan=2, pady=10)
+
+        ttk.Button(popup, text="Create", command=create_event).grid(row=1, column=0, padx=5, pady=5)
+        ttk.Button(popup, text="Delete", command=lambda: make_popup("Delete Event", client.delete_event)).grid(row=1, column=1, padx=5, pady=5)
+        ttk.Button(popup, text="Search", command=search_event).grid(row=1, column=2, padx=5, pady=5)
+        ttk.Button(popup, text="Attend", command=lambda: make_popup("Attend Event", client.add_user_as_participant)).grid(row=2, column=0, padx=5, pady=5)
+        ttk.Button(popup, text="Leave", command=lambda: make_popup("Leave Event", client.remove_user_participation)).grid(row=2, column=1, padx=5, pady=5)
 
 class EMSApp:
     def __init__(self, root):
