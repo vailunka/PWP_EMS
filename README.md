@@ -59,7 +59,11 @@ To see the test coverage report in the CLI, run `coverage report`. You can also 
 
 ### Running the documentation
 
-Documentation is ran automatically when the server hosting the API is online. The documentation can be found from `http://localhost:5000/apidocs/`
+Documentation is ran automatically when the server hosting the API is online. The documentation can be found from `http://app-route-unction-pwp-deployment.2.rahtiapp.fi/apidocs/`
 
 ### Running the GUI / Client
 The Graphical User Interface can be run by using the command: `python -m src.gui`. *The client itself can be found from* `src/ems_client.py`. 
+
+### Deploying the application on Rahti
+
+The application can be run by importing the deployment.yaml to Rahti. Since the MySQL IP address changes every deployment, it needs to be changed to the config.py file. After the change, the dockerfile needs to be rebuilt and pushed to the repository. Then you need to restart the application pod. Finally, you need to setup a route to the PWP EMS service in Rahti. The deployment should work now.
