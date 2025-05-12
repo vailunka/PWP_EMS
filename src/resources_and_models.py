@@ -3,7 +3,7 @@
 from datetime import datetime
 import hashlib
 import secrets
-import keyring
+# import keyring
 import jsonschema.validators
 from jsonschema import validate, ValidationError
 from flask import Flask, request, Response, jsonify
@@ -648,6 +648,6 @@ if __name__ == "__main__":
             db.session.add(admin_key)
             db.session.commit()
             # Store in keyring
-            keyring.set_password("EMS_admin", "admin", admin_token)
+            # keyring.set_password("EMS_admin", "admin", admin_token)
 
     app.run(debug=True)
